@@ -1,115 +1,4862 @@
-# TITLE PAGE \n\nINTERACTIVE TOY\n(FURBY.ASM - Version 25)\n\nINVENTOR: Dave Hampton\n\nAttorney Docket No. 64799\nFITCH, EVEN, TABIN \\& FLANNERY\nSuite 900\n135 South LaSalle Street\nChicago, Illinois 60603-4277\nTelephone (312) 372-7842
-      ```\n;EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII!\n;*\n;* SPC81A Source Code (Version 25)\n;*\n;* Written by: Dave Hampton / Wr & Schulz\n;* Date: July 30, 1998\n;*\n;* Copyright (C) 1996,1997,1998 by Sounds Amazing!\n;* All rights reserved.\n;EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII!\n;*\n;***************************************************************\n; remember SBC if there is a borrow carry is CLEARED\n; also SBC if the two numbers are equal you still get a negative\nresult\n;\n;EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII;\n;* MODIFICATION LIST :\n;\n; Purby29/30/31/32\n    Final testing for shipment of code on 8/2/98.\n    Tables updated for speed updated, wake up/name fix\n    sequential tab...s never getting first entry.fixed.\n    New diag5.asm, Light3.asm (if light osc stalls it wont hang\nsystem).\n;\n; Purby33\n    In motor brake routine, turn motors off before turning reverse\n    braking pulse on to save transistors.\n;\n; Purby34\n    Cleanup start code and wake routines.\n    Light sensor goes max dark and stays there to reff time, then\n    call sleep macro and shut down.\n;\n; Purby35\n    Adds four new easter eggs,BURP ATTACK, SAY NAME, TWINKLE SONG,\n    and ROOSTER LOVES YOU. Also add new names.\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;
-      Release 3\n\n: File \"testR3a\"\n: 1. Light sensor has a hysteresis point of continually triggering sensor.\n: 2. Light sensor decrements two instead of one on hungry counter.\n: 3. Diagnos ' - de for light sensor wont trigger very easily.\n: 4. When a furpy eceives the I.R. sleep command he sends the same command\n: out before goi. - to sleep.\n: 5. When hungry is ow enough to trigger sick counter, each sensor deducts two instead of one for each hit.\n: 6. When diagnostics complete c1ear memory, reset hungry \\& sick to FF randomly choose new name an voice, then write EEPROM before going to sleep. Also extend EEPROM diagnostic to test all locations for pass/fail of device.\n: 7. Add new light routine\n: 8. Change hide and seek egg to light, light, light, tummy.\n: 9. Change sick/hungry counter so that it can only get so sick and not continue down to zero. (MAX_SICK)\n:10. In diagnostics, motor position test ,, , first goes forward continuously until the front switch is pressed, then goes reverse continuously until the front switch is pressed again, and then does normal position calibration stopping at the calibration switch.\n:11. On power up we still use tilt and invert to generate startup random numbers, but if feed switch is pressed for cold boot, we use it to generate random numbers, because it is controlled by the user where the tilt and invert are more flaky.\n:12. No matter what age, 25% of time he randomly pulls speech from age to generate more purbish at older ages.\n:13. Twinkle song egg\n: When song is complete, if both front and back switches are pressed we goto deep sleep. That means only the invert can wake us up, not the tilt switch.
-      Actual numeric value for TI pitch control\n\n```\nbit 7 set = subtract value from current course value\n    clr = add value to cur ent course value\nbit 6 set = select music pitch table\n    clr = select normal speech pitch table\nbit 0-5 value to change course value (no change = 0)\nA math routine in 'say_0' converts the value for + or -\nif <80 then subtracts from 80 to get the minus version of 00\nie, if numbur is 70 then TI gets sent 10 (which is -10)\nIf number is 80 or > 80 then get sent literal as positive.\nNOTE: MAX POSITIVE IS 8F (+16 from normal voice of 00)\n    MAX NEGATIVE is 2F (-47 from normal voice of 00)\nThis is a difference of 80h - 2Fh or 51h\n8Fh is hi voice (8f is very squeeeeeke)\n2Fh lo voice ( very low)\nThe math routine in 'say_0' allows a +-decimal number in the speech\ntable.\nA value of 80 = no change or 00 sent to TI\n: 81 = +1\n: 8f = +16\n; 2value of 7F = -1 from normal voice\n:70 = -16\nThe voice selection should take into consideration that the hi voice\nselection plus an aditional offset is never greater than 8f\nOr a low voice minus offset never less than 2f.\n```\n\n| Vol | EQU | 83h | ; $(+3)$ hi voice |\n| :--: | :--: | :--: | :--: |\n|  |  |  |  |\n|  | EQU | 7Ah | ; (-6) mid voice |\n|  |  |  |  |\n|  | EQU | 71h | ; (-15) low voice |\n\n; ; ; we converted to a random selection table, but since all voice tables\nuse the equate= plus some offset, we : . the change in the SAY_0\nroutine. We always assign voice 3 which is the lowest, and based on\nthe random power up pitch selection, the ram location 'Rvoice'\nholds\nthe number to add to the voice-offset received from the macro table.\n\nVoice EQU Voice3 ;pitch (choose Voice1, Voice2,\nVoice3) (voice2=norm)\n; Select Voice3 since it is the lowest and then add the difference to get\n; Voice2 or Voice3. Here we assign that difference to an equate to be\n; used in the voice table that is randomly selected on power up.\nS_voice1 EQU 18 ;Voice3 + 18d = Voice1\nS_voice2 EQU 09 ;Voice3 + 09d = Voice2
-      S_voice3 EQU 0 ;Voice3 + 00d = Voice3\n; Motor speed pulse width ;\n; Motor_on = power to motor, Motor_off is none.\n\nMpulse_on EQU 16 ;\nMpulse_off EQU 16 ;\n\nCal_pos_fwd EQU 134 ;calibration switch forward direction\nCal_pos_rev EQU 134 ;calibration switch forward direction\n; **********************************************************\n; **********************************************************\n; **********************************************************\n; UAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-      ```\n;* BANKO user RC $0600 - $7FFA.\n;* BANK1 user RC $8000 - $FFFF\n;* BANK2 user RC $10000 - $17FFF\n;* BANK3 user RC $1A000 - $1FFFF\n;*\n    VECTORS\n;* NMI vector $7FFA / $7FFB\n;* RESET vector $7FFC / $7FFD\n;* IRQ vector $7FFE / $7FFF\n;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-      \n\n;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n;AAAAAAAAAAAAAAAAAAAAAAA DATA LATCH PORT_D\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-      ```\nBit3: IE1 A: IE1= 0: Counter clock= external clock from IOC2\nBit2: T1 A = 1, T1= 0: counter clock= CPUCLK/8192\nBit1: IE0 A' T1= 1: counter clock= CPUCLK/6553u\nBit0: T0 AO IE0= 0: Counter clock= external clock from IOC2\n                = 1, T0= 0: counter clock= CPUCLK/4\n                T0= 1: counter clock= CPUCLK/64\n;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-      ```\n    Bit7: I/O 0: Disable ADC; 1: Enable ADC\n    Bit6: I/O\n    Bit5: I/O\n    Bit4: I/O\n    Bit3: I/O\n    Bit2: I/O\n    Bit1: I/O\n    Bit0: I/O\n;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-      ; Send a braking pulse to stop motor drift, and this EQU is a decimal number\n: that determines how many times through the 2.9 msec loop (how many loops)\n; the brake pulse is on. If attempting to make single count jumps, the\n; brake pulse needs to be between 26 and 30 . For any jump greater than 10\n; braking between 22 and 80 is acceptable. ( Long jumps are not critical\n; but short jump will begin to oscillate if braking is too great.)\n; 60 long \\& 20 short work at 3.6 v and no pulse width\nDrift_long EQU 60 ; number times thru intt before clearing pulse Drift_shect EQU 25 ;\n; *****************************************************************\n; set this with a number from 0 - 255 to determine timeout of all sensors\n; for the sequential increments. If it times out the table pointer ; goes back to the start, else each trigger increments through the table.\n; NOTE: this time includes the motor/speech execution time !!!\nGlobal_time EQU $16 ; 1=742 \\mathrm{mSEC} ; ; 255=18.3$ seconds\n; *****************************************************************\n; This determines how long Firby waits with no sensor activity, then\n; calls the Bored_table for a random speech selection.\n; Us a number between 1 \\& 255. Should probably not be less than 10.\n; SHOULD BE > 10 SEC TO ALLOW TIME FOR TRAINING OF SENSORS\nBored_seld EQU $40 ; 1=742 \\mathrm{mSEC} ; ; 255=189.3$ seconds\n; *****************************************************************\n; Each sensor has a sequential random sp. : which must equal 16.\n; Each sensor has a different assignment.\n; The tables are formatted with the first X assignments random\n; and the remaining as sequential.\nSeq_front EQU 8\nRan_front EQU 8\nSeq_back EQU 9\nRan_back EQU 7\nSeq_tilt EQU 10\nRan_tilt EQU 6\nSeq_invert EQU 8\nRan_invert EQU 8\nSeq sound EQU 0\nRan_sound EQU 16
-      | Seq_light | EQU | 0 |\n| :-- | :-- | :-- |\n| Ran_light | EQU | 16 |\n| Seq_feed | EQU | 8 |\n| Ran_feed | EQU | 8 |\n| Seq_wake | EQU | 0 |\n| Ran_wake | EQU | 16 |\n| Seq_bored | EQU | 7 |\n| Ran_bored | EQU | 9 |\n| Seq_hunger | EQU | 5 |\n| Ran_hunger | EQU | 11 |\n| Seq_sick | EQU | 4 |\n| Ran_sick | EQU | 12 |\n\n; rev furbl1ja\n; Each sensor also determines how often it is random or sequential\n; as in $50 / 50$ or $60 / 40$ etc.\n; These entries are subtracted from the random nurber generated\n; and determine the split. (the larger here, the more likely sequential pick)\n\n| Tilt_split | EQU | 80 h |  |\n| :-- | :-- | :-- | :-- |\n| Invert_split |  | EQU | 80 h |\n| Front_split EQU | 80 h |  |  |\n| Back_split EQU | 80 h |  |  |\n| Feed_split EQU | 80 h |  |  |\n| Sound_split EQU | 80 h |  |  |\n| Light_split EQU | 80 h |  |  |\n| Bored_split EQU | 80 h |  |  |\n| Hunger_split |  | EQU | 80 h |\n| Sick_split EQU | 80 h |  |  |\n\n\n| Random_age EQU 30 h ; at any age, below this number when a random number is picked will cause him to pull from the age 1 table. More Furbish.\n\nLearn_chg EQU 31 ; amount to inc or dec training of words\nFood EQU 20 h ; amount to increase 'Hungry' for each feeding\nNeed_food EQU 80 h ; below this starts complaining about hunger\nSick_reff EQU 60 h ; below this starts complaining about sickness\nReal1y_sick EQU 20 h ; below this only complains about sickness\nMax_sick EQU 80 h ; cant go below this when really sick\nHungry_dec EQU 01 ; subtract $X$ amount for each sensor trigger\nSick_dec EQU 01 ; subtract $X$ amount for each sensor trigger\nNt_word EQU FEH ; turn speech word active off\nNt_last EQU FBH ; bit 2 off - last word sent to TI
-      | Notor_led_timer | EQU | A0h | ;how long after motion done led on for IR |\n| :--: | :--: | :--: | :--: |\n| Mot_speed_cnt | EQU | Alh | ; motor speed test |\n| Mot_optc_cnt | EQU | A2h | ; * |\n| Cal_switch_cnt | EQU | A3h | ;used to eliminate noisy reads |\n| motorstoped eq | A4h | ; times wheel count when stopping |  |\n| Drift_counter | EQU | A5h | ; decides how much braking pulse to apply |\n| Mili_sec EQU | A6h | ;used in calc pot position by timer |  |\n| Cycle_timer EQU | A7h | ; bypasses intt port c updates to motor |  |\n| Sensor_timer | EQU | A8h | ;times between sensor trigger |\n| Bored_timer EQU | A9h | ; time with no activity to random speech |  |\n| Invrt_count EQU | AAh | ; which speech/motor call is next |  |\n| Tilt_count EQU | ABh | ; which speech/motor call is next |  |\n| Tchfrnt_count | EQU | ACh | ; which speech/motor call is next |\n| Tchbck_count | EQU | ADh | ; which speech/motor call is next |\n| Feed_count EQU | AEh | ; which speech/motor call is next |  |\n| Last_IR | EQU | AFh | ; last IR sample data to compare to next |\n| Wait_time EQU | B0h | ;used in IRQ to create 2.8 mSec timers |  |\n| Light_timer EQU | B1h | ; Light sensu. routine |  |\n| Light_count EQU | B2h | ; which speech/motor call is next |  |\n| Light_reff EQU | B3h | ; holds previous sample |  |\n| Sound_timer EQU | B4h | ; time to set new reff level |  |\n| Sound_count EQU | B5h | ; which speech/motor call is next |  |\n| Milisec_flag | EQU | B6h | ; set every 742 miliseconds |\n| Macro_Lo | E7U | ; table pointer |  |\n| Macro_Hi EQU | B8h | ; | * |\n| Egg_cnt | EQU | B9h | ; easter egg table count pointer |\n| ; *************** | * | K | ; Eo |\n\n\n| NCEL_Lo | EQU | BAh | ; |\n| :-- | :-- | :-- | :-- |\n| NCEL_HI | EQU | BBh | ; |\n| BIT_CT | EQU | BCh | ; |\n\n;\n| Prev_random EQU | BEh | ; prevents random number twice in a row |\n| :-- | :-- | :-- |\n| Bored_count EQU | BPh | ; sequential selection for bored table |\n| TEMP5 EQU | C0h | ; general use also used for wake up |\n| Temp_ID2 EQU | C1h | ; use in sensor training routines |\n| Temp_ID | EQU | C2h ; use in sensor training routines |\n| Learn_temp EQU | C3h | ; use in sensor training routines |\n|  |  |  |\n| Req_macro_lo | EQU | C4h ; holds last call to see if sleep or IR req |\n| Req_macro_hi | EQU | C5h ; |\n|  |  |  |\n| Sickr_count EQU | C6h | ; sequential counter for sick speech table |\n| Hungr_count EQU | C7h | ; sequential counter for hunger speech table |
-      | \\begin{tabular}{l} \nMotor_pulse 2 \\\\\n\\hline | EQU | C8h | :motor pulse timer \\\\\n\\hline \\end{tabular} |  |\n| :--: | :--: | :--: | :--: | :--: |\n|  |  |  |  |  |\n| Stat_0 |  | Equ | C9h | : System status |\n| Want_name | EQU | 01 H | ; bit | $0=$ set forces system to say Furpy's name |\n| Lt_prev_dn | EQU | 02 H | ; bit | $0=$ done flag for quick light changes |\n| Init_motor | EQU | 04 H | ; bit | $1=$ on wakeup do motor speed/batt test |\n| Init_Mspeed | EQU | 08 H | ; bit | $3=2 \\mathrm{nd}$ part of motor speed test |\n| Train_Bk_prev |  | EQU | 10 H | ; bit $4=$ set when 2 back sw hit in a row |\n| Sav_new_name |  | EQU | 20 H | ; bit $5=$ only happens on cold boot |\n| REV_dark_sleep |  | EQU | 40 H | ; bit $6=$ set -dark level sends to sleep |\n| Dark_sleep_prev |  | EQU | 80 H | ; bit $7=$ if set on wake up thend |\n\n\n| \\begin{tabular}{l} \nStat_1 \\\\\nWord_activ \\\\\nSay_activ \\\\\nWord_end \\\\\nWord_term \\\\\nUp_light \\\\\nSnd_reff \\\\\nHalf_age \\\\\nRandom_sel \\\\\n\\hline \\end{tabular} \n\\begin{tabular}{l} \nStat_2 \\\\\nMotor_actv \\\\\nMotor_fwd \\\\\nMotor_seek \\\\\nBside_dn \\\\\nBinvrt_dn \\\\\nTchft_dn \\\\\nTchbk_dn \\\\\nMacro_actv \\\\\n\\hline \\end{tabular} \n\\begin{tabular}{l} \nMotor_activ \\\\\nMotor_fwd \\\\\nMotor_seek \\\\\nBside_dn \\\\\nBinvrt_dn \\\\\nTchft_dn \\\\\nTchbk_dn \\\\\nMacro_actv \\\\\n\\hline \\end{tabular} \n\\begin{tabular}{l} \nMotor_activ \\\\\nMotor_fwd \\\\\nMotor_seek \\\\\nBside_dn \\\\\nBinvrt_dn \\\\\nTchft_dn \\\\\nTchbk_dn \\\\\nMacro_actv \\\\\n\\hline \\end{tabular} \n\\begin{tabular}{l} \nStat_3 \\\\\nLight_stat \\\\\nFeed_dn \\\\\nSound_stat \\\\\nIRQ_dn \\\\\nLt_reff \\\\\nMotor_on \\\\\nM_forward \\\\\nM_reverse \\\\\n\\hline \\end{tabular} \n\\begin{tabular}{l} \nStat_4 \\\\\nDo_end \\\\\nDo_light_brt \\\\\nDo_light_dim \\\\\nDo_tummy \\\\\nDo_back\n\\end{tabular} \n\\begin{tabular}{l} \nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\nEQU \\\\\n
-      ; is 1-16 for the sesnor table macro list and a ram for count which ; determines how often to call the learned word.\n; *** DO NOT CHANGE ORDER----- RAM adrs by Xreg offset\n\n| Tilt_learned | EQU | DAh | ; which word trained | 1 |\n| :--: | :--: | :--: | :--: | :--: |\n| Tilt_lrn_cnt | EQU | DBh | ; count determines how often called | 2 |\n| Feed_learned | EQU | DCh | ; which word trained | 3 |\n| Feed_lrn_cnt | EQU | DSh | ; count determines how often called | 4 |\n| Light_learned | EQU | DEh | ; which word trained | 5 |\n| Light_lrn_cnt | EQU | DFh | ; count determine now often called | 6 |\n| Dark_learned | EQU | E0h | ; which word trained | 7 |\n| Dark_lrn_cnt | EQU | E1h | ; count determines how often called | 8 |\n| Front_learned | EQU | E2h | ; which word trained | 9 |\n| Front_lrn_cnt | EQU | E3h | ; count determines how often called | 10 |\n| Sound_learned | EQU | E4h | ; which word trained | 11 |\n| Sound_lrn_cnt | EQU | E5h | ; count determines how often called | 12 |\n| Wake_learned | EQU | E6h | ; which word trained | 13 |\n| Wake_lrn_cnt | EQU | E7h | ; count determines how often called | 14 |\n| Invert_learned | EQU | E8h | ; which word trained | 15 |\n| Invert_lrn_cnt | EQU | E9h | ; count determines how often called | 16 |\n\n; next is equates defining which ram to use for each sensor\n; according to the sensor ram defined above. (compare to numbers above)\n\n; ********* Need to allow stack growth down ( EAh- FFH ) *********
-      \n\nORG 0600 H\nRESET:\n\nInclude\nWake2.asm ;asm file\n;******** end Tracker\n; For power on test, WE only clear ram to E9h and use EAh for a\n; messenger to the warm boot routine. We always clear ram and initialize\n; registers on power up, but if it is a warm boot then read E\"PRCM\n; and setup ram locations. Location EAH is set or cleared duri. ; power\nup\n; and then the stack can use it during normal run.\n; Clear RAM to 00 H\nLDA $\\quad \\# 00 \\mathrm{H} \\quad$; data for fill\nLDX $\\quad \\# \\mathrm{E} 9 \\mathrm{H} \\quad$; start at ram location\nRAMClear:\nSTA $00, \\mathrm{X} ;$ base 00, offset x\nDEX ; next ram location\nCPX \\#7FH ; check for end\nBNE RAMClear ; branch, not finished\n; fill done
-      Main:\n\n| Initio: |  |  |\n| :--: | :--: | :--: |\n| LDA | \\#01 | :turn DAC on |\n| STA | DAC_ctrl | : DAC control |\n| LDA | \\#Port_def | : set direction control |\n| STA | Ports_dir | :load reg |\n| LDA | \\#Con_def | : set configuration |\n| STA | Ports_con | :load reg |\n| LDA | \\#00 | : set for bank 0 |\n| STA | Bank | : set it |\n| LDA | \\#00H | :disable wakeup control |\n| STA | Wake_up | : |\n| LDA | \\#00h | :disable sleep control |\n| STA | Sleep | : set dont care |\n| LDA | \\#Intt_df1t | : Initialize timers, etc. |\n| STA | Interrupts | :load reg |\n| LDA | \\#00H | : set timer mode |\n| STA | TMA_CON | : set reg |\n| LDA | \\#TimeA_low | :get preset timer for interrupts |\n| STA | TMA_LSB | :load |\n| LDA | \\#TimeA_hi | : get hi byte for preset |\n| STA | TMA_MSB | :load it |\n| LDA | \\#TimeB_low | : get preset timer for interrupts |\n| STA | TMB_LSB | :load |\n| LDA | \\#TimeB_hi | : get hi byte for preset |\n| STA | TMB_MSB | :load it |\n| LDA | \\#C0h | : preset status for motors off |\n| STA | Stat_3 | : |\n| LDA | \\#00H | : init ports |\n| STA | Port_A | : output |\n| LDA | \\#33H | : init ports |\n| STA | Port_B_Image | : ram image |\n| STA | Port_B | : output |\n| LDA | \\#0FH | : init ports |\n| STA | Port_C | : output |\n| LDA | \\#DOH | : init ports |\n| STA | Port_D_Image | : ram image |\n| STA | Port_D | : output |\n| LDA | \\#FFh | : milisec timer reload value |\n| STA | Mili_sec | : also preset IRC timer |\n| CLI |  | : Enable IRQ |
-      JER Kick JRQ ; wait for internust to restart\nJSR TI_reset ; go init TI (uses 'Cycle_timer')\n: Preset motor speed, assuming mid battey life, we set the pulse width so that the motor wont be running at 6 volts and burn out. We then predict what the pulse width should be for any voltage.\n\nLDA \\#Mpulse_on ; preset motor speed\nLDA \\#11\nSTA Mon_len ; set motor on pulse timing\nLDA \\#05\nSTA Moff_len ; set motor off pulse timing\n:EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n: \"Diagnostics and calibration Routine\n:EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\nInclude\nDiag7.asm ; asm file\n: ***** Only called by diagnostic speech routines ********\n: Be sure to set 'MACRO_HI' and all calls are in that 128 byte block.\nDiag macro:\nSTA Macro_Lo ; save lo byte of Macro table entry\nLDA \\#0b8h ; \\#90h ; \\#ex offset to adrs. 400 added\nto diag call\nCLC\nADC Macro_Lo ; add in offset\nSTA Macro_Lo ; update\nLDA \\#01 ; get hi byte ours $400=190 \\mathrm{~h}$\nSTA Macro_Hi ; save hi byte of Macro table entry\nJSR Get macro ; go start motor/speech\nJSR Notrdy ; Do / get status for speech and motor\nRTS ;yo!\n: Enter with Areg holding how many 30 mili second delay cycles\nHalf delay:\nSTA TEMPI ; save timer\nHalf d2:\nLDA \\#10 ; set $1 / 2$ sec\n(y * 2.9 mSec )\nSTA Cycle_timer ; set it\nHalf_d3:\nLDA Cycle_timer ; ck if done\nBNE Half_d3 ; loop\nDEC TEMPI ; ; loop\nBNE Half_d2 ; loop\nRTS ; done
-      Test_byp: ;We assume diagnostic only runs on coldboot\n\n| LDA | \\#FFh | ; initialize word training variable |\n| :-- | :-- | :-- |\n| STA | Temp_ID |  |\n| LDA | \\#FFh | ; |\n| STA | Hungry_counter | ; preset furby's health |\n| STA | Sick_counter |  |\n\n; We sit here and wait for tilt to go away, and just keep incrementing\n; countar until it does. This becomes the new random generator seed.\nInit_rnd:\nINC TEMP1 ; random counter\nLDA Port_D ; get switches\nAND \\#03 ;check tilt \\& invert sw\nBNE Init_rnd ; loop til gone\nLDA TEMP1 ; get new seed\nSTA Spcl_seed1 ; stuff it\nSTA Seed_1 ; also load for cold boot\n; Use feed sw to generate a better random number\n\n| JSR | Get_feed | ; go test sensor |\n| :-- | :-- | :-- |\n| LDA | Stat_4 | ; get system |\n| AND | \\#Do_feed | ; ck sw |\n| BNE | Feed_rnd ${ }^{1}$ | ; if feed sw then cold boot |\n| JMP | End_coldinit | ; else do warm boot |\n\nFeed_rnd:\nINC TEMP1 ; random counter\nLDA Stat_4 ; system\nAND \\#DFh ; clear any prev feed sw senses\nSTA Stat_4 ; update\nJSR Get_feed ; go test sensor\nLDA Stat_4 ; get system\nAND \\#Do_feed ; ck sw\nBNE Feed_rnd ; wait for feed to go away\nLDA TEMP1 ; get new seed\nSTA Spcl_seed1 ; stuff it\nSTA Seed_1 ; also load for cold boot\n; IF this is a cold boot, reset command then clear EEPROM and\n; chose a new name and voice.\nDo_cold_boot:\nLDA \\#00\nSTA Warm_cold ; flag cold boot
-      ```\n    LDA Stat_0 ; system\n    CRA #Say_new_name ;make system say new name\nSTA Stat_0 ;\n;****** NOTE : : : : :\n; VOICE AND NAME SLECTION MUST HAPPEN BEFORE EEPRON WRITE OR\n; THEY WILL ALWAYS COME UP 00 because ram just got cleared!!!!!!\n; Random voice selection here\nLDA #80h ;ge random/sequential split\nSTA IN_DAT ; save for random routine\nLDX #00 ;make sure only gives random\nLDA #10h ;get number of random selections\nJSR Ran_seq ; go get random selection\nTAX\nLDA Voice_table,X ;get new voice\nSTA Rvoice ; set new voice pitch\n; On power up or reset, Furby must go select a new name . . . ahw how\n```\n\n```\n    LSR Random ;get 32 possible\n    AND #1Fh ;get 32 possible\nSTA Name ;set new name pointer\nJER Do_EE_write ;write the EEPROM\n```\n\nEnd_coldinit:\nEIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n; * 'Special initialization prior to normal run mode\n; * Jump to Warm_boot when portD wakes us up\nEIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n;\nWarm_boot: ;no mal ;tart when Port_D wakes us up.\nJSR S_EEF; M_READ ; read data to ram\n;Eprom_read_byp:\n; If light osc fails, or too dark and that sends us to sleep, we\n; set 'Dark_sl=wp_prev' and save it in EEPROM in 'Seed_2'.\n; when the sleep routine executes, (00 01 based on this bit)\n; When we wake up we recover this bit and it becomes the previous done\n; flag back in 'Stat_0', so that if the osc is
-      ; still dark or failed, Furby wont go back to sleep.\n\n| LDA | Seed_2 | ; from EEPROM |\n| :-- | :-- | :-- |\n| BEQ | No_prevsleep | ; jump if none |\n| LDA | Stat_0 | ; system |\n| ORA | \\#Dark_sleep_prev | ; prev done |\n| STA | Stat_0 | ;update |\n\nNo_prevsleep:\n\nLDA Spcl_seed1 ; recover start up random number\nSTA Seed_1 ; set generator\n; Pot_timeL2 is save in ram through sleep mode and then reloaded\n; Pot_timeL which is the working register for the motor position.\nThis allows startup routines to clear ram without forgetting the\n; last motor position.\nLDA Pot_timeL2 ; get current count\nSTA Pot_ imeL ; save in motor routine counter\n; Get age and make sure it is not greater than 3 (age4)\nLDA Age ; get current age\nAND \\#83h ;preserve bit 7 which is 9th age counter bit\n; ; ; ; and insure age not $>3$\nSTA Age ; set system\n; *********************\nLDA \\#Bored_reld ; reset timer\nSTA Bored_timer ;\nLDA \\#03 ; set timer\nSTA Last JR ; timer stops IR from hearing own IR xmit\nJSR Get_light ; go get light level sample\nLDA TEMP1 ; get new count\nSTA Light_reff ;update system\n\nLDA Warm_cold ; decide if warm or cold boot\nCMP \\#1ih ;ck for warm boot\nBEQ No_zero ; jump if is
-      | LDA | \\#00 | ; point to macro 0 (SENDS TO SLEEP POSITION) |\n| :--: | :--: | :--: |\n| STA | Macro_Lo |  |\n| STA | Macro_Hi |  |\n| JSR | Get_macro | ; go start motor/speech |\n| JSR | Notrdy | ; Do / get status for speech and motor |\n\nNo_zero:\n\n| LDA | \\#11 | ; preset motor speed |\n| :-- | :-- | :-- |\n| STA | Mon_len | ; set motor on pulse timing |\n| LLA | \\#05 | ; set motor to $3 / 4$ speed for speed test |\n| STA | Moff_len | ; set motor off pulse timing |\n\n\n| LDA | \\#00 | ;clear all system sensor requests |\n| :-- | :-- | :-- |\n| STA | Stat_4 | ;update |\n\n; Currently uses 4 tables, one for each age.\nLDA Stat_0 ; system\nORA \\#Init_motor :flag motor to do speed test\nORA \\#Init_Mspeed ; 2nd part of test\nSTA Stat_0 ;update\n; Do wake up routine :\n
-      ```\n;EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII!\n;' 'IDLE Routine\n;EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII!\n;\n```\n\nIdle:\n; Idle routine is the time slice task master (TSTM) ugh!\n; We must call each routine and interlese with a call to speech\n; to insure we never miss a TI request for data.\nJSR Notrdy ;Do / get status for speech and motor\n; THIS bit is set when light sensor is darker than 'Dark_sleep'\n\n| LDA | Stat_0 | ; system |\n| :-- | :-- | :-- |\n| AND | \\#REQ_dark_sleep | ;ck for req |\n| BEQ | No_dark_req ; jump if not |  |\n| LDA | Stat_0 | ; system |\n| AND | \\#BPh | ; kill req |\n| STA | Stat_0 | ;update |\n| LDA | \\#A6h | ; sleep macro |\n| STA | Macro_Lo |  |\n| LDA | \\#00h | ; sleep macro |\n| STA | Macro_Hi | ; |\n| JMP | Start_macro | ; go say it |\n\nNo_dark_req:\n; When any sensor or timer calls the \"start_macro\" routine, the\n; Macro_Lo \\& Macr_Hi are saved. Everyone jumps back to Idle and when\n; speech/motor routines are finished, this routine will look at the\n; macros that were used and execute another function if a match is\nfound.\n; Checks for his name first, then any IR to send, and finally, the sleep\n; commands. The temp macro buffers are cleared before\n\n```\nSpcl_Name1:\n    LDX #00 ; offset\nSpcl_Name2:\n    LDA Ck_Name_table,X ;ck lo byte\n    CMP #FFh ;ck for end of table (note 255 cant execute)\n    BEQ Spcl_IR1 ;done if is\n    CMP Req_macro_lo ;ck against last speech request\n    BNE Not_Name2 ; jump if not\n    INX ; to hi byte\n    LDA Ck_Name_table,X ;ck hi byte\n    CMP Req_macro_hi ;ck against last speech request\n```
-      Spcl_macro1:\nLDX \\#00 ; offset\nSpcl_sleep1:\nLDA sleepy_table, X ;ck lo byte\nCMP \\#FFh ; ck for end of table (note 255 cant execute)\nBEQ Ck_macro_dn ; done if is\nCMP Req macro_lo ;ck against last speech request\nBNE Not_sleepy2 ; jump if not\nINX ; to hi byte\nLDA sleepy_table, X ; ck hi byte\nCMP Req macro_hi ; ck against last speech request\nBNE Not_sleepy: ; jump if not\nLDA \\#00 ; clear macro pointers for wake up\nSTA Req macro_lo\nSTA Req macro_hi\n;mod F-rels2 ;\nBefore going to sleep send sleep cmnd to all others.\nLDA \\#15 ;\nSTA TEMP2 ; xmit temp ram\nLDA \\#FDh ; TI command for IR xmit\nSTA TEMP1 ;\nJSR Xmit_TI ; go send it\n; need to wait $>600$ milisec before going to sleep because we arent using ;busy flags from TI and need to make sure it is done transmitting the ;I.R. code, the sleep routine kills the TI and it would never send the cmnd.\n\nLDA \\#25 ;how many 30 milisec cycles to call\nJSR Half_delay ; do 30 milisec delay cycles\n;end mod\nJMP GoToSleep ; nity-night\nNot_sleepy2:\nINX ;\nNot_sleepy3:\nINX ;\nJMP Spcl_sleep1 ; loop til done\nCk macro_dn:\nLDA \\#00 ; clear macro pointers for wake up\nSTA Req macro_lo\nSTA Req macro_hi\nJMP Test_new_name ; on to task master\n; ; ; ; ; ; SLEEP TABLE \\& IR table ..... MOVE TO INCLUDE FILE LATER\nSleepy_table:\nDW 91 ;hangout\nDW 166 ; wake up\nDW 167 ; wake up\nDW 168 ; wake up\nDW 169 ; wake up
-      | DW | 258 | ; Back sw |\n| :--: | :--: | :--: |\n| DW | 259 | ; Back sw |\n| DW | 260 | ; Back sw |\n| DW | 403 | ; IR |\n| DW | 413 | ; IR |\n| DW | 429 | ; IR |\n| DB | FFh,FFh | ; FF FF is table terminator |\n\n\n| Iramit_table: |  |  |\n| :--: | :--: | :--: |\n| DW |  | ; trigger macro |\n| DB | 00 | ; which IR command to call ( 0 - 0f) |\n| DW | 13 | ; trigger macro |\n| DB | 00 | ; which IR command to call ( 0 - 0f) |\n| DW | 17 | ; trigger macro |\n| DB | 00 | ; which IR command to call ( 0 - 0f) |\n| DW | 19 | ; trigger macro |\n| DB | 00 | ; which IR command to call ( 0 - 0f) |\n| DW | 26 | ; trigger macro |\n| DB | 00 | ; which IR command to call ( 0 - 0f) |\n| DW | 29 | ; trigger macro |\n| DB | 00 | ; which IR command to call ( 0 - 0f) |\n| DW | 33 | ; trigger macro |\n| DB | 00 | ; which IR command to call ( 0 - 0f) |\n| DW | 34 | ; trigger macro |\n| DE | 00 | ; which IR command to call ( 0 - 0f) |\n| DW | 44 | ; trigger macro |\n| DB | 00 | ; which IR command to call ( 0 - 0f) |\n| DW | 45 | ; trigger macro |\n| DB | 00 | ; which IR command to call ( 0 - 0f) |\n| DW | 48 | ; trigger macro |\n| DB | 00 | ; which IR command to call ( 0 - 0f) |\n| DW | 50 | ; trigger macro |\n| DB | 00 | ; which IR command to call ( 0 - 0f) |\n| DW | 55 | ; trigger macro |\n| DB | 00 | ; which IR command to call ( 0 - 0f) |\n| DW | 60 | ; trigger macro |\n| DB | 00 | ; which IR command to call ( 0 - 0f) |\n| DW | 149 | ; from rooster wake up |\n| DB | 00 | ; |\n| DW | 352 | ; trigger macro |\n| DB | 01 | ; which IR command to call ( 0 - 0f) |\n| DW | 363 | ; trigger macro |\n| DB | 01 | ; which IR command to call ( 0 - 0f) |\n| DW | 393 | ; trigger macro |\n| DB | 01 | ; which IR command to call ( 0 - 0f) |\n| DW | 248 | ; trigger macro |\n| DB | 02 | ; which IR command to call ( 0 - 0f) |\n| DW | 313 | ; trigger macro |\n| DB | 02 | ; which IR command to call ( 0 - 0f) |\n| DW | 86 | ; trigger macro |\n| DB | 03 | ; which IR command to call ( 0 - 0f) |\n| DW | 93 | ; trigger macro |\n| DB | 03 | ; which IR command to call ( 0 - 0f) |\n| DW | 339 | ; trigger macro |
-      | DB | 03 | ; which IR command to call ( 0 - 0f ) |\n| :--: | :--: | :--: |\n| DW | 344 | ; trigger macro |\n| DB | 03 | ; which IR command to call ( 0 - 0f ) |\n| DW | 351 | ; trigger macro |\n| DB | 03 | ; which IR command to call ( 0 - 0f ) |\n| DW | 404 | ; trigger macro |\n| DB | 04 | ; which IR command to call ( 0 - 0f ) |\n| DW | 405 | ; trigger macro |\n| DB | 04 | ; which IR command to call ( 0 - 0f ) |\n| DW | 293 | ; trigger macro |\n| DB | 05 | ; which IR command to call ( 0 - 0f ) |\n| DW | 394 | ; trigger macro |\n| DB | 05 | ; which IR command to call ( 0 - 0f ) |\n| DW | 406 | ; trigger macro |\n| DB | 05 | ; which IR command to call ( 0 - 0f ) |\n| DW | 414 | ; trigger macro |\n| DB | 05 | ; which IR command to call ( 0 - 0f ) |\n| DW | 422 | ; trigger macro |\n| DB | 05 | ; which IR command to call ( 0 - 0f ) |\n| DW | 395 | ; trigger macro |\n| DB | 06 | ; which IR command to call ( 0 - 0f ) |\n| DW | 421 | ; trigger macro |\n| DB | 06 | ; which IR command to call ( 0 - 0f ) |\n| DW | 423 | ; trigger macro |\n| DB | 06 | ; which IR command to call ( 0 - 0f ) |\n| DW | 296 | ; trigger macro |\n| DB | 07 | ; which IR command to call ( 0 - 0f ) |\n| DW | 415 | ; trigger macro |\n| DB | 07 | ; which IR command to call ( 0 - 0f ) |\n| DW | 416 | ; trigger macro |\n| DB | 07 | ; which IR command to call ( 0 - 0f ) |\n| DW | 288 | ; trigger macro |\n| DB | 08 | ; which IR command to call ( 0 - 0f ) |\n| DW | 11 | ; trigger macro |\n| DB | 09 | ; which IR command to call ( 0 - 0f ) |\n| DW | 12 | ; trigger macro |\n| DB | 09 | ; which IR command to call ( 0 - 0f ) |\n| DW | 27 | ; trigger macro |\n| DB | 09 | ; which IR command to call ( 0 - 0f ) |\n| DW | 42 | ; trigger macro |\n| DB | 09 | ; which IR command to call ( 0 - 0f ) |\n| DW | 57 | ; trigger macro |\n| DB | 09 | ; which IR command to call ( 0 - 0f ) |\n| DW | 235 | ; trigger macro |\n| DB | 09 | ; which IR command to call ( 0 - 0f ) |\n| DW | 236 | ; trigger macro |\n| DB | 09 | ; which IR command to call ( 0 - 0f ) |\n| DW | 237 | ; trigger macro |\n| DB | 09 | ; which IR command to call ( 0 - 0f ) |\n| DW | 238 | ; trigger macro |\n| DB | 09 | ; which IR command to call ( 0 - 0f ) |\n| DW | 261 | ; trigger macro |\n| DB | 09 | ; which IR command to call ( 0 - 0f ) |\n| DW | 262 | ; trigger macro |
-      | DB | 09 | ; | which IR command to call ( 0 - 0f ) |\n| :--: | :--: | :--: | :--: |\n| DW | 396 | ; trigger macro |  |\n| DB | 09 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 409 | ; trigger macro |  |\n| DB | 09 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 399 | ; trigger macro |  |\n| DB | 10 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 407 | ; trigger macro |  |\n| DB | 10 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 408 | ; trigger macro |  |\n| DB | 10 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 272 | ; trigger macro |  |\n| DB | 11 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 273 | ; trigger macro |  |\n| DB | 11 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 274 | ; trigger macro |  |\n| DB | 11 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 275 | ; trigger macro |  |\n| DB | 11 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 400 | ; trigger macro |  |\n| DB | 11 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 418 | ; trigger macro |  |\n| DB | 11 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 425 | ; trigger macro |  |\n| DB | 11 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 426 | ; trigger macro |  |\n| DB | 11 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 336 | ; trigger macro |  |\n| DB | 12 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 342 | ; trigger macro |  |\n| DB | 12 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 401 | ; trigger macro |  |\n| DB | 12 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 92 | ; trigger macro |  |\n| DB | 13 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 411 | ; trigger macro |  |\n| DB | 13 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 419 | ; trigger macro |  |\n| DB | 13 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 427 | ; trigger macro |  |\n| DB | 13 | ; | which IR command to call ( 0 - (f) ) |\n| DW | 291 | ; trigger macro |  |\n| DB | 14 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 402 | ; trigger macro |  |\n| DB | 14 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 412 | ; trigger macro |  |\n| DB | 14 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 428 | ; trigger macro |  |\n| DB | 14 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 256 | ; trigger macro |  |\n| DB | 15 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 257 | ; trigger macro |  |\n| DB | 15 | ; | which IR command to call ( 0 - 0f ) |\n| DW | 420 | ; trigger macro |  |
-      DB 15 :which IR command to call ( 0 - 0f )\n;mod F-rels2 ; send sleep if recv sleep on IR\nDW 403 ; trigger macro\nDB 15 :which IR command to call ( 0 - 0f )\nDW 413 ; trigger uacro\nDB 15 :which IR command to call ( 0 - 0f )\n; end mod\nDB FFh,FFh ;FF FF is table terminator\n\nCk_Name_table:\nDW 97\nDW 248\nDW 393\nDW 414\nDW 149\nDW 305\nDW 404\nDW 421\nDB FFh,FFh ; FF FF is table terminator\n; Say name\nTest_new_name:\n\n| LDA | Stat_0 | ; system |\n| :-- | :-- | :-- |\n| AND | \\#Say_new_name | ; make system say new name |\n| BEQ | Nosayname | ; bypass it clear |\n| LDA | Stat_0 |  |\n| AND | \\#DFh | ; kill req for startup new name |\n| STA | Stat_0 | ; update |\n| LDA | Name | ; current setting for table offset |\n| CLC |  |  |\n| ROL | A | $: 2$ 's comp |\n| TAX |  |  |\n| LDA | Name_table,X | ; get 10 byte |\n| STA | Macro_Lo | ; save 10 byte of Macro table entry |\n| INX |  |  |\n| LDA | Name_table,X | ; get hi byte |\n| STA | Macro_Hi | ; save hi byte of Macro table entry |\n| JSR | Get_macro | ; go start motor/speech |\n| JSR | Notrdy | ; Do / get status for speech and motor |\n\nNosayname:\n; ***** below routines run at 742 mSec loops\n; Timer B sets 'Millisec_flag' each 742 milliseconds
-      \n\n```\n; none active\n;;\n; Task 0 : scans all active requests from sensors looking for a trigger.\n; If any are set then scan through the game select tables for each game\n; looking for a match, and increment the counter each time a succesive\n; match is found. If one is not in sequence, then that counter is reset\nto\n; zero. Since all counters are independent, then the first one to\ncompletion\n; wins and all others are zeroed.\n; All sensor triggers are in one status byte so we can create a number\n; based on who has been triggered (we ignore the I.R. sensor).\n; The following bits are in Stat_4 and are set when they are triggered\n; by the individual sensor routines :\n; 00 = none\n; 01 = Loud sound\n; 02 = Light change brighter\n; 04 = Light change darker\n; 08 = Front tummy switch\n; 10 = Back switch\n; 20 = Feed switch\n; 40 = Tilt switch\n```
-      ; $8^{\\circ}=$ Invert switch\n; We assi 1 a single bit per game or egg senario. Each time a\n; sensor :s triggered, we increment the counter and test all eggs for\n; a match. If a particular sensor doesn match, then set its\ndisqualified\n; bit and move on. If at any time all bits are set, then clear counter to\n; zero and start over. When a table gets an FF then that egg is executed.\n; Each time a sensor is triggered, the system timer is reset. This timer ; called 'Sensor_timer'is reset with 'Global_time' equate. This timer is also\n; used for the random sequential selection of sensor responses. If this\n; timer goes to zero before an egg is complete, ie, Furby has not been played\n; with, then clear all disqualified bits and counters.\n; Currently there are 24 possible eggs. (3 bytes)\n;Qualify1:\n;DQ_fortune EQU 01 ;bit $0=$ fortune teller\n;DQ_rap EQU 02 ;bit $1=$ rap song\n;DQ_hide EQU 04 ;bit $2=$ hide and seek\n;DQ_simon EQU 08 ;bit $3=$ simon says\n;DQ_burp EQU 10 ;bit $4=$ burp attack\n;DQ_name EQU 20 ;bit $5=$ say name\n;DQ_twinkle EQU 40 ;bit $6=$ sing song\n;DQ_rooste EQU 80 ;bit $7=$ rooster-love you\n;Qualify2: ; ; ; ; removed due to lack of RAM\nbit $0=$\nbit $1=$\nbit $2=$\nbit $3=$\nbit $4=$\nbit $5=$\nbit $6=$\nbit $7=$\n; Test triggers here\nCk game:\nLDA Sensor_timer ;ck if no action for a while\nLDA Bored_timer ;ck if no action for a while\nBNE Ck_gamactv ; jump if system active\nJSR Clear_games ; go reset all other triggers and game pointers\nCk_gamactv:\nLDA Qualify1 ;test if all are disqualified\nCMP \\#FFh ; compare activ bits only\nBNE Ck_anysens ; jump if some or all still active\nLDA Qualify2 ; test if all are disqualified\nCMP \\#00h ; compare activ bits only\nBNE Ck_anysens ; jump if some or all still active\nJSR Clear_games ; go reset all other triggers and game pointers\nCk_anysens:\nLDA Stat_4 ;ck if any sensor is triggered\nBNE Ck_gaml ; go ck games if any set\nJMP Ck_bored ; bypass if none
-      | STA | Qualify1 | ;update system |\n| :--: | :--: | :--: |\n| JMP | Ck_gam7 | ;check next egg |\n| Ck_gam6a: |  |  |\n| LDA | Name_egg+1,X | ; get current data +1 to see if end of egg |\n| CMP | \\#FFh | ; test if end of table and start of game |\n| BNE | Ck_gam7 | ; jump if not at end |\n| JSR | Clear_games | ; go reset all other triggers and game pointers |\n| LDA | Game_1 | ; get system |\n| ORA | \\#Name_mode | ; start game mode |\n| STA | Game_1 | ;update |\n| LDA | \\#00 | ; clear all pointers |\n| STA | Stat_5 | ; system |\n| JMP | Idle | ; done |\n\nCk_gam7: ; twinkle song\nLDA Qualify1 ;update game qualification\nAND \\#DQ_twinkle ;check if dis-qualified bit\nBNE Ck_gam8 ; bail out if is\nLDA Twinkle_egg, X ; get current data\nAND Stat_4 ; compare against sensor trigger\nBNE Ck_gam7a ; if set then good compare\nLDA Qualify1 ;update game qualification\nORA \\#DQ_twinkle ; set dis-qualified bit\nSTA Qualify1 ;update system\nJMP Ck_gam8 ; check next egg\nCk_gam7a:\nLDA Twinkle_egg+1,X ; get current data +1 to see if end of egg\nCMP \\#FFh ; test if end of table and start of game\nBNE Ck_gam8 ; jump if not at end\nJSR Clear_games ; go reset all other triggers and game pointers\nLDA Game_1 ; get system\nORA \\#Twinkle mode ; start game mode\nSTA Game_1 ;update\nLDA \\#00 ; clear all pointers\nSTA Stat_5 ; system\nJMP Idle ; done\nCk_gam8: ; roos' or loves you\nLDA Qualify1 ;update game qualification\nAND \\#DQ_rooster ; check if dis-qualified bit\nBNE Ck_gam9 ; bail out if is\nLDA Rooster_egg,X ; get current data\nAND Stat_4 ; compare against sensor trigger\nBNE Ck_gam8a ; if set then good compare\nLDA Qualify1 ;update game qualification\nORA \\#DQ_rooster ; set dis-qualified bit\nSTA Qualify1 ;update system\nJMP Ck_gam9 ; check next egg\nCk_gam8a:\nLDA Rooster_egg+1,X ; get current data +1 to see if end of egg\nCMP \\#FFh ; test if end of table and start of game\nBNE Ck_gam9 ; jump if not at end\nJSR Clear_games ; go reset all other triggers and game pointers\nLDA Game_1 ; get system\nORA \\#Rooster_mode ; start game mode\nSTA Game_1 ;update\nLDA \\#00 ; clear all pointers\nSTA Stat_5 ; system\nJMP Idle ; done
-      # Ck gam9: \n\n
-      DB 20h, 20h, 20h, 10h, FFh ; feed,f oed,feed,back\nName_egg:\nDB 08h, 08h, 08h, 10h, FFh ; frnt, frnt, frnt, back\nTwinkle_egg:\nDB 01h, 01h, 01h, 10h, FFh ; and, and, and, back\nRooster_egg:\nDB 04h, 04h, 04h, 10h, FFh ; light, light, light, back\n;\n; Normal task scan of sensc:s and timers.\nCk_bored:\nLDA Bored_timer ;ck if bored ... $=0$\nBNE Ck_tski ; jump if not bored\n; Currently uses 4 tables, one for each age.\nLDA \\#Bored_split ; get random/sequential split\nSTA IN_DAT ; save for random routine\nLDX \\#Seq_bored ; get number of sequential selections\nLDA \\#Ran_bored ; get number of randoms\nJSR Ran_seq ; go decide random/sequential\nBLS Bored_ran ; Random mode when carry SET\nLDX Bored_count ; save current\nINC Bored_count ; if not then next table entry\nLDA Bored_count ; get\nCLC\nSBC \\#Seq_bored-1 ;ck if > assignment\nBCC Bored_side ; jump if <\nLDA \\#00 ; reset to 1st entry of sequential\nSTA Bored_count ;\nBored_s'de:\n; current count\nBored_ran:\nJSR Decid_age ; do age calculation for table entry\nLDX TEMPO ; age offset\nLDA Bored_S1,X ; get new sound/word\nSTA Macro_Lo ; save lo byte of Macro table entry\nINX\nLDA Bored_S1,X ; get new sound/word\nSTA Macro_Hi ; save hi byte of Macro table entry\nJMP Start_macro ; go set group/table pointer for motor \\& spch\n;\nCk_tski:\nLDA Task_ptr\nCMP \\#01 ; decide which\nBNE Ck_tsk4 ; jump if not\nJMP CR_tilt ; Ck ball switch side sense\nCk_tsk4:\nCMP \\#02 ; c\\&cide which\nBNE Ck_tsk5 ; jump if not
-      BNE NMM_out ; wait til 0\nLDA Drift_rev ;\nBNE NMM_out ; wait til 0\n; Set a timer and ck counter 'motorstopad' (incremented with wheel count)\n; to see if it changed. When it stops changing then the motor has stopped.\nLDA motorstopad ;ck for 0\nBNE NMM_out ; wait till 0\nLDA TEMP1 ; get last motor count\nCMP Pot_timeL ; ck if changed\nBEQ Motor_done ; jump if same (motor finally stopped)\nLDA Pot_timeL ; get current\nSTA TEMP1 ;\nLDA \\#15 ; reset timer (8)\nSTA motorstopad ;\nJMP NMM_out ; wait another cycle\nMotor_done:\nLDA Cycle_timer ; get step timer\nBNE NMM_out ; wait til 0\nSTA Drift_counter ; use as a temp register\nJSR Motor_data ; get data\nLDA \\#00\nSTA TEMP1 ; reset\nLDA Motor_lo ; get data (use for lbyte table (DB)).\nCMP \\#FFh ; is it table end (dont inc off end)\nBNE Motor_pause ; more\nLDA Stat_2 ; get system\nAND \\#Motor_ntseek ; clear seek flag\nSTA Stat_2 ; update system\nNMM_out:\nJMP Endtask_2 ; seek complete\nMotor_pause:\nLDA Motor_lo ; check for pause request on this step (00)\nBNE More_motor ; more\nJMP Motor_killend ; set cycle timer and :ait for next motor\nstep\n; To initialize the motor call table, the originator loads 'Which_motor' ; with the pointer and calls 'Decide_motor'.\n\nCk_Macro:\nJSR Next_macro ; get data\nSTA Which_motor ; save motor seek pointer\nJSR Next_macro ; get data\nSTA Mgroup ; save high byte\nCMP \\#00h ; check for end of macro\nBNE Got_macro ; do it if not 0\nLDA Which_motor ; ck lo byte for 0\nCMP \\#00h ; check for end of macro
-      ; increment, based on new direction, to compensate for the slot which ; will be counted twice.\n\n| LDA | Motor_lo | ; get data |\n| :--: | :--: | :--: |\n| CMP | Pot_timeL | ; ck for same |\n| BNE | Tst_fwdmore | ; jump if not 0 |\n| LDA | Stat_2 | ; get system |\n| AND | \\#Motor_inactv | ; clear activ flag |\n| STA | Stat_2 | ; update system |\n| JMP | Endtask_2 | ; bail out |\n| Tst_fwdmore: |  |  |\n| CLC |  |  |\n| SBC | Pot_timeL | ; get current position |\n| BCC | Go_rev | ; if borrow then dec command |\n\nGo_fwd:\nLDA\n*.\nAND \\#Pos_sen\nBEQ Go_fwd2\nLDA Stat_2\nAND \\#Motor_fwd\nBNE Go_fwd2\nDEC\n; get I R detector\n; bypass if sensor is over slot in wheel ; get system\n; get direction motor was last headed\n;if set then new direction is same as last ; compensate for counter direction reversal\n\nGo_fwd2:\nLDA Stat_2\n; get system\nORA \\#Motor_fwd\n; set = motor fwd (inc)\nORA \\#Motor_actv ; set motor in motion\nSTA Stat_2\n; update system\nLDA Stat_3\n; get current status\nORA \\#Motor_off ; turn both motors off\nAND \\#Motor_fwds ; move motor in fwd dir\nJMP End_rev ; go finish port setup\nGo_rev:\nLDA\nORA\n; get I R detectir\nAND \\#Pos_sen\nBEQ Go_rev2\n; bypass if sensor is over slot in wheel\nLDA Stat_2\n; get system\nAND \\#Motor_fwd ; get direction motor was last headed\nBEQ Go_rev2 ; if clr then new direction is same as last INC Pot_timeL2 ; compensate for counter direction revercal\n\nGo_rev2:\nLDA Stat_2\n; get system\nAND \\#Motor_rev ; clear fwd flag\nORA \\#Motor_actv ; set motor in motion\nSTA Stat_2\n; update system\nLDA Stat_3\n; get current status\nORA \\#Motor_off ; turn both motors off\nAND \\#Motor_revs ; move motor in rev dir\nEnd_rev:\nSTA Stat_3\nJMP Endtask_2 ; done\nDo_motor:\n; f(1) (1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(
-      ; jmp Byp_motorS3\n\n| LDA | Stat_0 | ; system |\n| :-- | :-- | :-- |\n| AND | \\#Init_Mspeed | ; ck if motor to do speed test |\n| BEQ | Byp_motorS3 ; only runs on wake up |  |\n| LDA | Stat_0 | ; system |\n| AND | \\#Init_motor ; ck if motor to do speed test |  |\n| BEQ | Byp_motorS2 ; only runs on wake up |  |\n| LDA | Stat_0 | ; system |\n| AND | \\#Nt_Init_motor | ; done |\n| STA | Stat_0 | ; update |\n| LDA | \\#00 | ; reset opto speed counter |\n| STA | Mot_opto_cnt | ; setit |\n| LDA | \\#Opto_spd_reld | ; get timer value for speed test |\n| STA | Mot_speed_cnt | ; set it |\n\nByp_motorS2:\nLDA Mot_speed_cnt ;get timer\nBNE Byp_motorS3 ; do nothing if $>0$\n\n\nByp_motorS3:\n;11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
-      ```\n; DB 58,60,60,60,60,60,60,60,60,60,60\n; DB 20,22,24,27,30,32,34,36,38\n; DB 46,48,50,52,54,56,58,60,60,60,60,60\n    DB 25,26,27,28,30,32,34,36,38,42,\\&5\n    DB 48,51,54,57,60,60,60,60,60,60,60\n;\nOn wake up when the motor moves from position 10 to 134, we\n; time it and increment a counter which is used to access this table\n; and get the motor on pulse value.\n; Refer to power up preset pulse width for table pointers\nMotor_speed:\n    DB Mpulse_on,Mpulse_on,Mpulse_on\n    DB Mpulse_on,Mpulse_on,Mpulse_on\n    DB Mpulse_on,Mpulse_on,Mpulse_on\n    DB Mpulse_on,Mpulse_on,Mpulse_on ;f,10\n    DB Mpulse_on,Mpulse_on,Mpulse_on\n    DB Mpulse_on,Mpulse_on,Mpulse_on\n    DB Mpulse_on,Mpulse_on,Mpulse_on-1\n    DB Mpulse_on-2,Mpulse_on-3,Mpulse_on-4 ;1b,1c\n    DB Mpulse_on-5,Mpulse_on-5,Mpulse_on-6\n    DB Mpulse_on-7,Mpulse_on-8,Mpulse_on-9\n    DB Mpulse_on-9,Mpulse_on-9,Mpulse_on-9\n    DB Mpulse_on-9,Mpulse_on-9,Mpulse_on-9\n    DB Mpulse_on-9,Mpulse_on-9,Mpulse_on-9\n    DB Mpulse_on-9,Mpulse_on-9,Mpulse_on-9\nDB Mpulse_on-9,Mpulse_on-9,Mpulse_on-9\n```\n\n;\n; This finds the 16 bit adrs of the table and points the motor\n
-      \n\nGet_macro:\n; Motor noise is triggering sound sensor hardware, so this sets the ; previously sound done flag, and the system will not respond to the ; sound sensor until the sound trigger line goes low and clears prev done.\n\n| LDA | Stat_3 | ; system |\n| :-- | :-- | :-- |\n| ORA | \\#Sound_stat | ; set prev dn |\n| STA | Stat_3 | ; set prev dn |\n\n;------------------- end sound flag
-      INC Age_counter ;rolls over tc inc age\nBNE Same_age ; jump if no roll over\n\n; AGE INCREMENT uses bit 7 to double age counter\nLDA Age ;get bit 7 - set = counter rolled over twice\nAND \\#80h ;get bit 7\nBNE Roll_age ;bit 7 set so inc age\nLDA Age\nORA \\#80h ; set bit 7 for next counter roll over\nSTA Age ;update\nJMP Same_age ; done\n\nRoll_age:\nINC Age ; just grew up some\nLDA Age\nAND \\#07h ; clear bit 7\nSTA Age\nCLC\nSBC \\#03 ; make sure it isnt > 3 (0-3 age)\nBCC Same_age ; jump if <4\nLDA \\#03 ; max age\nSTA Age ;\nSame_age:\n;------------------- end age\n\n| LDA | Stat_2 | ; system |\n| :-- | :-- | :-- |\n| ORA | \\#Macro_actv | ; flag request |\n| STA | Stat_2 | ; update |\n| CLC |  | ; do speech |\n| ROL | Macro_Lo | ; move hi bit to carry \\& get 2's offset |\n| ROL | Macro_Hi | ; move carry into one of four group ptr |\n\nLDA Macro_Lo ; offset ptr\nLDA Macro_Hi ; get current group pointer\nCMP \\#03 ; is it table group 4\nBEQ Dec_macro4 ; jump if is\nCMP \\#02 ; is it table group 3\nBEQ Dec_macro3 ; jump i: is\nCMP \\#01 ; is it table group 2\nBEQ Dec_macro2 ; jump if is\nDec macro1: ; table group 1\nLDA Macro_grp1,X ; get lo pointer\nSTA Macro_Lo ; working buffer\nINX ; $\\mathrm{X}+1$\nLDA Macro_grp1, X ; get hi pointer\nJMP Dec_macro_end ; go finish load\nDec macro2:\nLDA Macro_grp2, X ; get lo pointer\nSTA Macro_Lo ; working buffer\nINX ; $\\mathrm{X}+1$\n;\nLDA Macro_grp2, X ; get hi pointer\nJMP Dec_macro_end ; go finish load\nDec macro3:\nLDA Macro_grp3, X ; get lo pointer\nSTA Macro_Lo ; working buffer\nINX ; $\\mathrm{X}+1$
-      JSR Clear_all_gam\nLDA \\#Bored_reld ;reset bored timer\nSTA Bored_timer ;\nLDA Name ; current setting for table offset\nCLC\nROL A ; 2's comp\nTAX\nLDA Name_table, X ; get lo byte\nSTA Macro_Lo ;save lo byte of Macro table entry\nINX\nLDA Name_table, X ; get hi byte\nSTA Macro_Hi ;save hi byte of Macro table entry\nJMP Start_macro ;go set group/table pointer for motor \\& spch\n;Twinkle song egg\n; When song is complete, if both front and back switches are pressed\n; we goto deep sleep. That means only the invert can wake us up, not\n; the invert switch.\nTwinklsnd_lo EQU \\#D5h ;using macro 469\nTwinklsnd_hi EQU \\#01h ;\nSleep_lo EQU \\#A6h ;using macro 166 (before going to sleep)\nSleep_hi EQU \\#00h ;\nGame_twinkle:\nJSR Clear_all_gam\nLDA \\#03 ; song counter\nSTA HCEL_LO ; set\nGtwnk:\nDEC HCEL_LO ; -1\nLDA Stat_2 ;Get system clear done flags\nAND \\#Not_tch_ft ; clear previously inverted flag\nAND \\#Not_tch_bk ; clear previously inverted flag\nSTA Stat_2 ;update\nLDA \\#Bored_reld ;reset bored timer\nSTA Bored_timer ;\nLDA \\#Twinklsnd_lo ; get macro lo byte\nSTA Macro_Lo ;save lo byte of Macro table entry\nLDA \\#Twinklsnd_hi ; get macro hi byte\nSTA Macro_Hi ;save hi byte of Macro table entry\nJSR Get_macro ;go start motor/speech\nJSR Notify ;Do / get status for speech and motor\nJSR Test_all_sens ; get status\nJSR Test_all_sens ; get status 2nd time for debounce\nLDA Stat_4 ; switch status\nAND \\#18h ; isolate front and back switches\nCMP \\#18h ;\nBEQ Start_sleep ; if both switches pressed, goto sleep\nLDA HCEL_LO ; get song loop counter\nBNE Gtwnk ; loop
-      JMP Idle\n; not so egg complete\nStart_sleep:\nLDA \\#Sleep_lo ;get macro lo byte\nSTA Macro_Lo ; save lo byte of Macro table entry\nLDA \\#Sleep_hi ;get macro hi byte\nSTA Macro_Hi ; save hi byte of Macro table entry\nJSR Get_macro ; go start motor/speech\nJSR Notrdy ;Do / get status for speech and motor\nLDA \\#11h ; set deep sleep mode\nSTA Deep_sleep ;\nJMP GoToSleep ; nity-night\n; Rooster loves you egg\nRoostersnd_lo EQU \\#D4h ;using macro 468\nRoostersnd_hi EQU \\#01h ;\n\nGame_rooster:\nJSR Clear_all_gam\nLDA \\#Bored_reld ; reset bored timer\nSTA Bored_timer ;\nLDA \\#Roostersnd_lo ; get macro lo byte\nSTA Macro_Lo ; save lo byte of Macro table entry\nLDA \\#Roostersnd_hi ; get macro hi byte\nSTA Macro_Hi ; save hi byte of Macro table entry\nJMP Start_ma cro ; go set group/table pointer for motor \\& spch\n; If a game requires sensor input without triggering the normal\n; sensor cycle for speech, then this rtn will check all sensors for\n; change and the calling game can check for the appropriate trigger\n; DO NOT USE I.R. SENSOR SINCE ITS RAM LOCATIONS ARE USED IN GAMES\nTest_all_sens:\nJSR Get_back ;\nJSR Get_Tilt ;\nJSR Get_invert ;\nJSR Get_front ;\nJSR Get_light ;\nJSR Get_sound ;\nJSR Get_feed ;\nRTS ; back to game\n; **** Side all switch triggers when ball falls off center and I/O goes
-      ```\nhi.\nCK_tilt: ;tilt sensor\n    JSR Get_Tilt ;go ck for sensor trigger\n    BCS Normal_tilt ;go fini normal spch/motor table\n    JMP Idle ;no request\nGet_Tilt: ;this is the subroutine entry point.\n    LDA Port_D ;get I/O\n    AND *Ball_side ;ck if we tilted on side\n    BNE Do_bside ; jump if hi\n    LDA Stat_2 ;Get system\n    AND #Not_bside ;clear previously on side flag\n    STA Stat_2 ;update\nSide_out: \\int\n    CLC ;clear indicates no request\n    RTS\nDo_bside:\n    LDA Stat_2 ; system\n    AND #Bside_dn ;ck if previously done\n    BNE Side_out ; jump if was\n    LDA Stat_2 ;get system\n    ORA #Bside_dn ;flag set, only execute once\n    STA Stat_2 ;update system\n    LDA Stat_4 ;game mode status\n    ORA #Do_tilt ;flag sensor is active\n    STA Stat_4 ;update\n    SEC ; carry set indicates sensor is triggered\nRTS\nNormal_tilt: ; Idle rtn jumps here to complete speech/motor table\n;;;;;;; also for testing, when tilt is triggered, it resets all\n    ; easter egg routines to allow easy entry of eggs.\nJSR Clear_all_gam ;\nJSR Life ; go tweek health/hungry counters\nBCS More_tilt ; if clear then do sensor else bail\nJMP Idle ;done\nMore_tilt:\n```\n\n```\n; * * * * * * * * * * * * * * * * * * * * * * * * * * *\n    LDA #Tilt_split ;get random/sequential split\n    STA IN_DAT ; save for random routine\n    LDX #Seq_tilt ; get how many sequential selections\n    LDA #Ran_tilt ; get number of random alections\nJSR Ran_seq ; go decide random/sequential\n```
-      \n\nNormal_invert:\n\nJSR Life ;go tweek health/hungry counters\nBCS More_invert ;if clear then do sensor else bail\nJMP Idle ; done\nMore_invert:\n\n| LDA | \\#Invert_split | ; get random/sequential split |\n| :-- | :-- | :-- |\n| STA | IN_DAT | ; save for random routine |\n\nLDX \\#Seq_invert ; get how many sequential selections\nLDA \\#Ran_invert ; get number of random alections\nJSR Ran_seq ; go decide random/sequential\nLDX Sensor_timer ; get current for craining subroutine\nBCS Invert_rnd ; Random mode when carry SET\nLDA Sensor_timer ;ck if timed out since last action\nB\\&Q Invrt_reset ;yep\nLDA Invrt_count ; save current\nSTA BIT_CT ;temp store\nINC Invrt_count ; if not then next table entry\nLDA Invrt_count ; get
-      STA DAC2 ; clear feed sw enable\n; LDA Stat_3 ; get system\n; AND \\#Feed_dn ;ck if prev done\n; BNE Feed_out ; jump if was\n; LDA Stat_3 ; get system\n; ; Elag set, only execute once\n; ; Iagdate system\n; ; Iagate system\n; ; game mode status\n; flag sensor is active\n; ; update\nSEC ; set when sensor is triggered\nRTS\nNormal_feed: ; enter here to complete speech/motor\n; health table calls here and decision for which speech pattern\nLDA \\#Food ; each feeding increments hunger counter\nCLC\nADC Hungry_counter ; feed him!\nBCC Feeding_dn ; jump if no roll over\nLDA \\#FEh ; max count\nFeeding_dn:\nSTA Hungry_counter ; update\n;;;;; JSR Life ; go finish sick/hungry speech\nLDA \\#Feed_split ; get random/sequential split\nSTA IN_DAT ; save for random routine\nLDX \\#Seq_feed ; get how many sequential selections\nLDA \\#Ran_feed ; get random assignment\nJSR Ran_seq ; go decide random/sequential\nLDX Sensor_timer ; get current for training subroutine\nBCS Feedrand ; Random mode when carry set\nLDA Sensor_timer ; ck if timed out since last action\nBEQ Feed_reset ; yep\nLDA Feed_count ; save current\nSTA BIT_CT ; temp store\nINC Feed_count ; if not then next table entry\nLDA Feed_count ; get\nCLC\nSBC \\#Seq_feed-1 ; ck if > assignment\nBCC Feed_sut ; jump if <\nLDA \\#Seq_feed-1 ; don! inc off end\nSTA Feed_count ;\nJMP Feed_set ; do it\nFeed_reset:
-      \n\nNormal_light:\n; below routines are jumped to by light exec if > reff\n\nJSR Life ; go tweek heelth/hungry counters\nBCS More_light ; if clear then do sensor else bail\nJMP Idle ;done\nMore_light:\n; get random/sequential split\nSTA IN_DAT ; save for random routine
-      we should never get here so bail back to idle and this will also prevent system lockup when no clk\n\n| LDA | \\#250 | ; never allow roll over |\n| :-- | :-- | :-- |\n| STA | TEMP1 | $; \\quad$ |\n|  |  |  |\n| CLI |  | ;re-enable interrupt |\n| JSR | Kick JRQ | ; wait fuc motor R/C to start working again |\n| LDA | TEMP1 | ; get count |\n| CLC |  | ;clear |\n| SBC | \\#05 | ;is diff > 5 |\n| BCC | No_snd | ;bail out if not |\n|  |  |  |\n| LDA | Stat_3 | ; system |\n| AND | \\#Sound_stat | ; ck for prev done |\n| BNE | No_snd2 | ; wait till quiet |\n|  |  |  |\n| LDA | Stat_3 | ; system |\n| ORA | \\#Sound_stat | ; |\n| STA | Stat_3 | ; set prev dn |\n|  |  |  |\n| LDA | Stat_4 |  |\n| ORA | \\#Do_snd | ; set indicating change > reff level |\n| STA | Stat_4 | ; |\n|  |  |  |\n| SEC |  | ; carry se: indicates no change |\n| RTS |  |  |\n\nNo_snd:\nLDA Stat_3 ; get system\nAND \\#Nt_snd_stat ; clear prev dn\nSTA Stat_3 ; update\nNo_snd2:\nCLC ; carry clear indicates no sound\nRTS ; done\nNormal_sound:\n; below routines are jumped to if sound pulse detected\n; go tweek health/hungry counters\n;if clear then do sensor else bail\n;done\n\nMore_sound:\nLDA \\#Sound_split ;get random/sequential split\nSTA IN_DAT ; save for random itine\nLDA \\#Seq_sound ; get how many sequential selections\nLDA \\#Ran_sound ; number of random selections\nJSR Ran_seq ; go decide random/sequential
-      \n\n```\n    STA IN_DAT ;save decision\n    LDA #Sound_ID ;which ram location for learned word count\n    (offset)\n    JSR Start_learn ; go record training info\n    LDA IN_DAT ; get back word to speak\n    JSR Decid_age ; do age calculation for table entry\n    LDX TEMPO ; age offset\n    LDA Sound_S1,X ; get lo byte\n    STA Macro_Lo ; save lo byte of Macro table entry\n    INX ;\n    LDA Sound_S1,X ; get hi byte\n    STA Macro_Hi ; save hi byte of Macro table entry\n    JMP Start_macro ; go set group/table pointer for motor & spch\n```\n\n; SENSOR TRAINING\n; Training for each sensor is set up here and the decision if the
-      learned\n; word should be played or not.\n; Temp_ID hold the ram offset for the last sensor of the learned word.\n; Temp_ID2 hold the ram offset for the current sensor of the learned word.\n; IN_DAT holds the current word the sensor chose, and will be loaded with\n; the learned word instead if the sensor count > the random number that was\n; just sampled, ie., force learned word to play.\n; ****\n; If the sensor timer is at 0 when entering here, then the LEARN_TEMP\n; ram location is cleared, else the current learned word is loaded. If\n; the learned word is 0 then all entries are cleared.\n; When entering, check sensor timer and bail if 0 . THen test if this is\n; the back switch and if so then move the current sensor to previous\nsensor\n; ram and increment the counter.\n; If this is not the back switch, then get previous sensor ram counter and\n; decrement it. THen move all current sensor information to previous and\n; return to caller.\n; Because of training difficulties, we now need two back touches to\n; increment training counters. If only one occurs then the normal\ndecreme:t\n; happens. This double back touch helps to prevent accidentally training\n; with a new macro by hitting the back sw when it is not the macro you\n; have been working with.\nstart_learn:\nSTA Temp_ID2 ; sensor ram location of counter (current sensor)\nLDA Temp_ID2 ;get current sensor ID\nCMP \\#EEh ;EF= this is the back switch (special)\nBNE Not_BCK ; jumpif not\nCPX \\#00 ;ck if sensor timer timed out\nBNE Learn_update ; jump if is back switch and not timed out\nNot_BCK:\nLDA Temp_ID ;get previous sensor ram offset\nCMP \\#EEh ;ck if last was back sw\nBEQ Not_learned ; jump if no sensor prev\nLDX Temp_ID ;get prev:ous sensor ram offset\nLDA Tilt_learned, X ; get learned word counter from ram\nCMP Learn_temp ; compare with last word\nBNE Do_lrn2 ; bail out if different\nLDA Tilt_lrn_cnt, X ;prev sensor counter +offset to current\nsensor\nCLC\nSBC \\#Learn_chg ; dec learned word counter since not back sw\nSTA Tilt_lrn_cnt, X ;update\nBCS Do_lrn2 ; jump if > \\#Learn_chg\nBPL Do_lrn2 ; jump if not negative (rolled over)\nLDA \\#00\nSTA Tilt_lrn_cnt, X ; set to zero, no roll over
-      ; on 1st cycle of new learn, we set counter $1 / 2$ way ..... (chicken)\n\n;\n; When IRQ gets turned off, and then restarted, we wait two complete cycle to insure the motor R/C pulses are back in sync.\nKick IRQ:\nLDA Stat_3 ;get system\nAND \\#Nt IRQdn ;clear IRQ occured status\nSTA Stat_3 ;update system\nLDX \\#03 ; loop counter\nKick2:\nLDA Stat_3 ;system\nAND \\#IRQ_dn ;ck if IRQ occured\nBEQ Kick2 ;wait till IRQ happens\nLDA Stat_3 ;get system\nAND \\#Nt IRQdn ;clear IRQ occured status\nSTA Stat_3 ;update system\nDEX Kick2 ; 1000 til done\nRTS ;is done\n; EEPROM READ/WRITE\n; Read \\& write subroutines\n;
-      Enter with 'TEMPO' holding adrs of 0-63. Areg holds lo byte and Xreg holds hi byte. If carry is clear then it was succesfull, if carry is set the write failed.\n\nMODIFIED eeprom, load lo byte in temp1 and hi byte in temp2 and call EEWRIT2.\n\n| LDA | $\\# 00$ | ;use DAC output to put TI in reset |\n| :-- | :-- | :-- |\n| STA | DAC1 | ; |\n| SEI |  | ;turn IRQ off |\n\nLDA $\\quad \\# 00 \\quad$;EEPROM adrs to write data to\nSTA Sgroup ; save adrs\nLDA \\#13 ; number of ram adrs to transfer (x/2)\nSTA Which_delay ; save\nLDA $\\quad \\# 00 \\quad$; Xreg offset\nSTA Which_motor ; save\nNeed one read cycle before a write to wake up EEPROM\nLDX Which_motor ; eeprom address to read from\nJSR EEREAD ; get data (wakes up eeprom)\n\nWrite_loop:\n\n| LDA | Sgroup | ; get next EEPROM adrs |\n| :-- | :-- | :-- |\n| STA | TEMPO | ; buffer |\n| LDX | Which_motor | ; ram source |\n| LDA | Age,X | ; lo byte (data byte \\#1) |\n| STA | TEMP1 | ; save data bytes |\n| INC | Which_motor | ; |\n| INX |  |  |\n| LDA | Age,X | ; |\n| STA | TEMP2 | ; hi byte (data byte \\#2) |\n| JSR | EEWRIT2 | ; send em |\n| BCS | EEfail | ; jump if bad |\n\nINC Sgroup ; 0-63 EEPROM adrs next\nINC Sgroup ; 0-63 EEPROM adrs next (eeprom writes 2 bytes)\n\nINC Which_motor ; next adrs\nDEC Which_delay ; how many to send\nBNE Write_loop ; send some more\nRTS ; done\nREAD EEPROM HERE AND SETUP RAM\nS_EEPROM_READ:\nXreg is the adrs 0-63, system returns lo byte in Areg \\& hi byte in Xreg.\non call: $X=$ EEPROM data address (0-63)\non return: ACC = EEPROM data (low byte) (also in TEMPO)\n$X=$ EEPROM data (high byte) (also in TEMP1)
+# TITLE PAGE 
+
+INTERACTIVE TOY
+(FURBY.ASM - Version 25)
+
+INVENTOR: Dave Hampton
+
+Attorney Docket No. 64799
+FITCH, EVEN, TABIN \\& FLANNERY
+Suite 900
+135 South LaSalle Street
+Chicago, Illinois 60603-4277
+Telephone (312) 372-7842
+      ```
+;EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII!
+;*
+;* SPC81A Source Code (Version 25)
+;*
+;* Written by: Dave Hampton / Wr & Schulz
+;* Date: July 30, 1998
+;*
+;* Copyright (C) 1996,1997,1998 by Sounds Amazing!
+;* All rights reserved.
+;EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII!
+;*
+;***************************************************************
+; remember SBC if there is a borrow carry is CLEARED
+; also SBC if the two numbers are equal you still get a negative
+result
+;
+;EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII;
+;* MODIFICATION LIST :
+;
+; Furby29/30/31/32
+    Final testing for shipment of code on 8/2/98.
+    Tables updated for speed updated, wake up/name fix
+    sequential tab...s never getting first entry.fixed.
+    New diag5.asm, Light3.asm (if light osc stalls it wont hang
+system).
+;
+; Furby33
+    In motor brake routine, turn motors off before turning reverse
+    braking pulse on to save transistors.
+;
+; Furby34
+    Cleanup start code and wake routines.
+    Light sensor goes max dark and stays there to reff time, then
+    call sleep macro and shut down.
+;
+; Furby35
+    Adds four new easter eggs,BURP ATTACK, SAY NAME, TWINKLE SONG,
+    and ROOSTER LOVES YOU. Also add new names.
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+      Release 3
+
+: File \"testR3a\"
+: 1. Light sensor has a hysteresis point of continually triggering sensor.
+: 2. Light sensor decrements two instead of one on hungry counter.
+: 3. Diagnos ' - de for light sensor wont trigger very easily.
+: 4. When a furpy eceives the I.R. sleep command he sends the same command
+: out before goi. - to sleep.
+: 5. When hungry is ow enough to trigger sick counter, each sensor deducts two instead of one for each hit.
+: 6. When diagnostics complete c1ear memory, reset hungry \\& sick to FF randomly choose new name an voice, then write EEPROM before going to sleep. Also extend EEPROM diagnostic to test all locations for pass/fail of device.
+: 7. Add new light routine
+: 8. Change hide and seek egg to light, light, light, tummy.
+: 9. Change sick/hungry counter so that it can only get so sick and not continue down to zero. (MAX_SICK)
+:10. In diagnostics, motor position test ,, , first goes forward continuously until the front switch is pressed, then goes reverse continuously until the front switch is pressed again, and then does normal position calibration stopping at the calibration switch.
+:11. On power up we still use tilt and invert to generate startup random numbers, but if feed switch is pressed for cold boot, we use it to generate random numbers, because it is controlled by the user where the tilt and invert are more flaky.
+:12. No matter what age, 25% of time he randomly pulls speech from age to generate more purbish at older ages.
+:13. Twinkle song egg
+: When song is complete, if both front and back switches are pressed we goto deep sleep. That means only the invert can wake us up, not the tilt switch.
+      Actual numeric value for TI pitch control
+
+```
+bit 7 set = subtract value from current course value
+    clr = add value to cur ent course value
+bit 6 set = select music pitch table
+    clr = select normal speech pitch table
+bit 0-5 value to change course value (no change = 0)
+A math routine in 'say_0' converts the value for + or -
+if <80 then subtracts from 80 to get the minus version of 00
+ie, if numbur is 70 then TI gets sent 10 (which is -10)
+If number is 80 or > 80 then get sent literal as positive.
+NOTE: MAX POSITIVE IS 8F (+16 from normal voice of 00)
+    MAX NEGATIVE is 2F (-47 from normal voice of 00)
+This is a difference of 80h - 2Fh or 51h
+8Fh is hi voice (8f is very squeeeeeke)
+2Fh lo voice ( very low)
+The math routine in 'say_0' allows a +-decimal number in the speech
+table.
+A value of 80 = no change or 00 sent to TI
+: 81 = +1
+: 8f = +16
+; 2value of 7F = -1 from normal voice
+:70 = -16
+The voice selection should take into consideration that the hi voice
+selection plus an aditional offset is never greater than 8f
+Or a low voice minus offset never less than 2f.
+```
+
+| Vol | EQU | 83h | ; $(+3)$ hi voice |
+| :--: | :--: | :--: | :--: |
+|  |  |  |  |
+|  | EQU | 7Ah | ; (-6) mid voice |
+|  |  |  |  |
+|  | EQU | 71h | ; (-15) low voice |
+
+; ; ; we converted to a random selection table, but since all voice tables
+use the equate= plus some offset, we : . the change in the SAY_0
+routine. We always assign voice 3 which is the lowest, and based on
+the random power up pitch selection, the ram location 'Rvoice'
+holds
+the number to add to the voice-offset received from the macro table.
+
+Voice EQU Voice3 ;pitch (choose Voice1, Voice2,
+Voice3) (voice2=norm)
+; Select Voice3 since it is the lowest and then add the difference to get
+; Voice2 or Voice3. Here we assign that difference to an equate to be
+; used in the voice table that is randomly selected on power up.
+S_voice1 EQU 18 ;Voice3 + 18d = Voice1
+S_voice2 EQU 09 ;Voice3 + 09d = Voice2
+      S_voice3 EQU 0 ;Voice3 + 00d = Voice3
+; Motor speed pulse width ;
+; Motor_on = power to motor, Motor_off is none.
+
+Mpulse_on EQU 16 ;
+Mpulse_off EQU 16 ;
+
+Cal_pos_fwd EQU 134 ;calibration switch forward direction
+Cal_pos_rev EQU 134 ;calibration switch forward direction
+; **********************************************************
+; **********************************************************
+; **********************************************************
+; UAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      ```
+;* BANKO user RC $0600 - $7FFA.
+;* BANK1 user RC $8000 - $FFFF
+;* BANK2 user RC $10000 - $17FFF
+;* BANK3 user RC $1A000 - $1FFFF
+;*
+    VECTORS
+;* NMI vector $7FFA / $7FFB
+;* RESET vector $7FFC / $7FFD
+;* IRQ vector $7FFE / $7FFF
+;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      
+
+;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+;AAAAAAAAAAAAAAAAAAAAAAA DATA LATCH PORT_D
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      ```
+Bit3: IE1 A: IE1= 0: Counter clock= external clock from IOC2
+Bit2: T1 A = 1, T1= 0: counter clock= CPUCLK/8192
+Bit1: IE0 A' T1= 1: counter clock= CPUCLK/6553u
+Bit0: T0 AO IE0= 0: Counter clock= external clock from IOC2
+                = 1, T0= 0: counter clock= CPUCLK/4
+                T0= 1: counter clock= CPUCLK/64
+;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      ```
+    Bit7: I/O 0: Disable ADC; 1: Enable ADC
+    Bit6: I/O
+    Bit5: I/O
+    Bit4: I/O
+    Bit3: I/O
+    Bit2: I/O
+    Bit1: I/O
+    Bit0: I/O
+;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      ; Send a braking pulse to stop motor drift, and this EQU is a decimal number
+: that determines how many times through the 2.9 msec loop (how many loops)
+; the brake pulse is on. If attempting to make single count jumps, the
+; brake pulse needs to be between 26 and 30 . For any jump greater than 10
+; braking between 22 and 80 is acceptable. ( Long jumps are not critical
+; but short jump will begin to oscillate if braking is too great.)
+; 60 long \\& 20 short work at 3.6 v and no pulse width
+Drift_long EQU 60 ; number times thru intt before clearing pulse Drift_shect EQU 25 ;
+; *****************************************************************
+; set this with a number from 0 - 255 to determine timeout of all sensors
+; for the sequential increments. If it times out the table pointer ; goes back to the start, else each trigger increments through the table.
+; NOTE: this time includes the motor/speech execution time !!!
+Global_time EQU $16 ; 1=742 \\mathrm{mSEC} ; ; 255=18.3$ seconds
+; *****************************************************************
+; This determines how long Firby waits with no sensor activity, then
+; calls the Bored_table for a random speech selection.
+; Us a number between 1 \\& 255. Should probably not be less than 10.
+; SHOULD BE > 10 SEC TO ALLOW TIME FOR TRAINING OF SENSORS
+Bored_seld EQU $40 ; 1=742 \\mathrm{mSEC} ; ; 255=189.3$ seconds
+; *****************************************************************
+; Each sensor has a sequential random sp. : which must equal 16.
+; Each sensor has a different assignment.
+; The tables are formatted with the first X assignments random
+; and the remaining as sequential.
+Seq_front EQU 8
+Ran_front EQU 8
+Seq_back EQU 9
+Ran_back EQU 7
+Seq_tilt EQU 10
+Ran_tilt EQU 6
+Seq_invert EQU 8
+Ran_invert EQU 8
+Seq sound EQU 0
+Ran_sound EQU 16
+      | Seq_light | EQU | 0 |
+| :-- | :-- | :-- |
+| Ran_light | EQU | 16 |
+| Seq_feed | EQU | 8 |
+| Ran_feed | EQU | 8 |
+| Seq_wake | EQU | 0 |
+| Ran_wake | EQU | 16 |
+| Seq_bored | EQU | 7 |
+| Ran_bored | EQU | 9 |
+| Seq_hunger | EQU | 5 |
+| Ran_hunger | EQU | 11 |
+| Seq_sick | EQU | 4 |
+| Ran_sick | EQU | 12 |
+
+; rev furbl1ja
+; Each sensor also determines how often it is random or sequential
+; as in $50 / 50$ or $60 / 40$ etc.
+; These entries are subtracted from the random nurber generated
+; and determine the split. (the larger here, the more likely sequential pick)
+
+| Tilt_split | EQU | 80 h |  |
+| :-- | :-- | :-- | :-- |
+| Invert_split |  | EQU | 80 h |
+| Front_split EQU | 80 h |  |  |
+| Back_split EQU | 80 h |  |  |
+| Feed_split EQU | 80 h |  |  |
+| Sound_split EQU | 80 h |  |  |
+| Light_split EQU | 80 h |  |  |
+| Bored_split EQU | 80 h |  |  |
+| Hunger_split |  | EQU | 80 h |
+| Sick_split EQU | 80 h |  |  |
+
+
+| Random_age EQU 30 h ; at any age, below this number when a random number is picked will cause him to pull from the age 1 table. More Furbish.
+
+Learn_chg EQU 31 ; amount to inc or dec training of words
+Food EQU 20 h ; amount to increase 'Hungry' for each feeding
+Need_food EQU 80 h ; below this starts complaining about hunger
+Sick_reff EQU 60 h ; below this starts complaining about sickness
+Real1y_sick EQU 20 h ; below this only complains about sickness
+Max_sick EQU 80 h ; cant go below this when really sick
+Hungry_dec EQU 01 ; subtract $X$ amount for each sensor trigger
+Sick_dec EQU 01 ; subtract $X$ amount for each sensor trigger
+Nt_word EQU FEH ; turn speech word active off
+Nt_last EQU FBH ; bit 2 off - last word sent to TI
+      | Notor_led_timer | EQU | A0h | ;how long after motion done led on for IR |
+| :--: | :--: | :--: | :--: |
+| Mot_speed_cnt | EQU | Alh | ; motor speed test |
+| Mot_optc_cnt | EQU | A2h | ; * |
+| Cal_switch_cnt | EQU | A3h | ;used to eliminate noisy reads |
+| motorstoped eq | A4h | ; times wheel count when stopping |  |
+| Drift_counter | EQU | A5h | ; decides how much braking pulse to apply |
+| Mili_sec EQU | A6h | ;used in calc pot position by timer |  |
+| Cycle_timer EQU | A7h | ; bypasses intt port c updates to motor |  |
+| Sensor_timer | EQU | A8h | ;times between sensor trigger |
+| Bored_timer EQU | A9h | ; time with no activity to random speech |  |
+| Invrt_count EQU | AAh | ; which speech/motor call is next |  |
+| Tilt_count EQU | ABh | ; which speech/motor call is next |  |
+| Tchfrnt_count | EQU | ACh | ; which speech/motor call is next |
+| Tchbck_count | EQU | ADh | ; which speech/motor call is next |
+| Feed_count EQU | AEh | ; which speech/motor call is next |  |
+| Last_IR | EQU | AFh | ; last IR sample data to compare to next |
+| Wait_time EQU | B0h | ;used in IRQ to create 2.8 mSec timers |  |
+| Light_timer EQU | B1h | ; Light sensu. routine |  |
+| Light_count EQU | B2h | ; which speech/motor call is next |  |
+| Light_reff EQU | B3h | ; holds previous sample |  |
+| Sound_timer EQU | B4h | ; time to set new reff level |  |
+| Sound_count EQU | B5h | ; which speech/motor call is next |  |
+| Milisec_flag | EQU | B6h | ; set every 742 miliseconds |
+| Macro_Lo | E7U | ; table pointer |  |
+| Macro_Hi EQU | B8h | ; | * |
+| Egg_cnt | EQU | B9h | ; easter egg table count pointer |
+| ; *************** | * | K | ; Eo |
+
+
+| NCEL_Lo | EQU | BAh | ; |
+| :-- | :-- | :-- | :-- |
+| NCEL_HI | EQU | BBh | ; |
+| BIT_CT | EQU | BCh | ; |
+
+;
+| Prev_random EQU | BEh | ; prevents random number twice in a row |
+| :-- | :-- | :-- |
+| Bored_count EQU | BPh | ; sequential selection for bored table |
+| TEMP5 EQU | C0h | ; general use also used for wake up |
+| Temp_ID2 EQU | C1h | ; use in sensor training routines |
+| Temp_ID | EQU | C2h ; use in sensor training routines |
+| Learn_temp EQU | C3h | ; use in sensor training routines |
+|  |  |  |
+| Req_macro_lo | EQU | C4h ; holds last call to see if sleep or IR req |
+| Req_macro_hi | EQU | C5h ; |
+|  |  |  |
+| Sickr_count EQU | C6h | ; sequential counter for sick speech table |
+| Hungr_count EQU | C7h | ; sequential counter for hunger speech table |
+      | \\begin{tabular}{l} 
+Motor_pulse 2 \\\\
+\\hline | EQU | C8h | :motor pulse timer \\\\
+\\hline \\end{tabular} |  |
+| :--: | :--: | :--: | :--: | :--: |
+|  |  |  |  |  |
+| Stat_0 |  | Equ | C9h | : System status |
+| Want_name | EQU | 01 H | ; bit | $0=$ set forces system to say Furpy's name |
+| Lt_prev_dn | EQU | 02 H | ; bit | $0=$ done flag for quick light changes |
+| Init_motor | EQU | 04 H | ; bit | $1=$ on wakeup do motor speed/batt test |
+| Init_Mspeed | EQU | 08 H | ; bit | $3=2 \\mathrm{nd}$ part of motor speed test |
+| Train_Bk_prev |  | EQU | 10 H | ; bit $4=$ set when 2 back sw hit in a row |
+| Sav_new_name |  | EQU | 20 H | ; bit $5=$ only happens on cold boot |
+| REV_dark_sleep |  | EQU | 40 H | ; bit $6=$ set -dark level sends to sleep |
+| Dark_sleep_prev |  | EQU | 80 H | ; bit $7=$ if set on wake up thend |
+
+
+| \\begin{tabular}{l} 
+Stat_1 \\\\
+Word_activ \\\\
+Say_activ \\\\
+Word_end \\\\
+Word_term \\\\
+Up_light \\\\
+Snd_reff \\\\
+Half_age \\\\
+Random_sel \\\\
+\\hline \\end{tabular} 
+\\begin{tabular}{l} 
+Stat_2 \\\\
+Motor_actv \\\\
+Motor_fwd \\\\
+Motor_seek \\\\
+Bside_dn \\\\
+Binvrt_dn \\\\
+Tchft_dn \\\\
+Tchbk_dn \\\\
+Macro_actv \\\\
+\\hline \\end{tabular} 
+\\begin{tabular}{l} 
+Motor_activ \\\\
+Motor_fwd \\\\
+Motor_seek \\\\
+Bside_dn \\\\
+Binvrt_dn \\\\
+Tchft_dn \\\\
+Tchbk_dn \\\\
+Macro_actv \\\\
+\\hline \\end{tabular} 
+\\begin{tabular}{l} 
+Motor_activ \\\\
+Motor_fwd \\\\
+Motor_seek \\\\
+Bside_dn \\\\
+Binvrt_dn \\\\
+Tchft_dn \\\\
+Tchbk_dn \\\\
+Macro_actv \\\\
+\\hline \\end{tabular} 
+\\begin{tabular}{l} 
+Stat_3 \\\\
+Light_stat \\\\
+Feed_dn \\\\
+Sound_stat \\\\
+IRQ_dn \\\\
+Lt_reff \\\\
+Motor_on \\\\
+M_forward \\\\
+M_reverse \\\\
+\\hline \\end{tabular} 
+\\begin{tabular}{l} 
+Stat_4 \\\\
+Do_end \\\\
+Do_light_brt \\\\
+Do_light_dim \\\\
+Do_tummy \\\\
+Do_back
+\\end{tabular} 
+\\begin{tabular}{l} 
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+EQU \\\\
+
+      ; is 1-16 for the sesnor table macro list and a ram for count which ; determines how often to call the learned word.
+; *** DO NOT CHANGE ORDER----- RAM adrs by Xreg offset
+
+| Tilt_learned | EQU | DAh | ; which word trained | 1 |
+| :--: | :--: | :--: | :--: | :--: |
+| Tilt_lrn_cnt | EQU | DBh | ; count determines how often called | 2 |
+| Feed_learned | EQU | DCh | ; which word trained | 3 |
+| Feed_lrn_cnt | EQU | DSh | ; count determines how often called | 4 |
+| Light_learned | EQU | DEh | ; which word trained | 5 |
+| Light_lrn_cnt | EQU | DFh | ; count determine now often called | 6 |
+| Dark_learned | EQU | E0h | ; which word trained | 7 |
+| Dark_lrn_cnt | EQU | E1h | ; count determines how often called | 8 |
+| Front_learned | EQU | E2h | ; which word trained | 9 |
+| Front_lrn_cnt | EQU | E3h | ; count determines how often called | 10 |
+| Sound_learned | EQU | E4h | ; which word trained | 11 |
+| Sound_lrn_cnt | EQU | E5h | ; count determines how often called | 12 |
+| Wake_learned | EQU | E6h | ; which word trained | 13 |
+| Wake_lrn_cnt | EQU | E7h | ; count determines how often called | 14 |
+| Invert_learned | EQU | E8h | ; which word trained | 15 |
+| Invert_lrn_cnt | EQU | E9h | ; count determines how often called | 16 |
+
+; next is equates defining which ram to use for each sensor
+; according to the sensor ram defined above. (compare to numbers above)
+
+; ********* Need to allow stack growth down ( EAh- FFH ) *********
+      
+
+ORG 0600 H
+RESET:
+
+Include
+Wake2.asm ;asm file
+;******** end Tracker
+; For power on test, WE only clear ram to E9h and use EAh for a
+; messenger to the warm boot routine. We always clear ram and initialize
+; registers on power up, but if it is a warm boot then read E\"PRCM
+; and setup ram locations. Location EAH is set or cleared duri. ; power
+up
+; and then the stack can use it during normal run.
+; Clear RAM to 00 H
+LDA $\\quad \\# 00 \\mathrm{H} \\quad$; data for fill
+LDX $\\quad \\# \\mathrm{E} 9 \\mathrm{H} \\quad$; start at ram location
+RAMClear:
+STA $00, \\mathrm{X} ;$ base 00, offset x
+DEX ; next ram location
+CPX \\#7FH ; check for end
+BNE RAMClear ; branch, not finished
+; fill done
+      Main:
+
+| Initio: |  |  |
+| :--: | :--: | :--: |
+| LDA | \\#01 | :turn DAC on |
+| STA | DAC_ctrl | : DAC control |
+| LDA | \\#Port_def | : set direction control |
+| STA | Ports_dir | :load reg |
+| LDA | \\#Con_def | : set configuration |
+| STA | Ports_con | :load reg |
+| LDA | \\#00 | : set for bank 0 |
+| STA | Bank | : set it |
+| LDA | \\#00H | :disable wakeup control |
+| STA | Wake_up | : |
+| LDA | \\#00h | :disable sleep control |
+| STA | Sleep | : set dont care |
+| LDA | \\#Intt_df1t | : Initialize timers, etc. |
+| STA | Interrupts | :load reg |
+| LDA | \\#00H | : set timer mode |
+| STA | TMA_CON | : set reg |
+| LDA | \\#TimeA_low | :get preset timer for interrupts |
+| STA | TMA_LSB | :load |
+| LDA | \\#TimeA_hi | : get hi byte for preset |
+| STA | TMA_MSB | :load it |
+| LDA | \\#TimeB_low | : get preset timer for interrupts |
+| STA | TMB_LSB | :load |
+| LDA | \\#TimeB_hi | : get hi byte for preset |
+| STA | TMB_MSB | :load it |
+| LDA | \\#C0h | : preset status for motors off |
+| STA | Stat_3 | : |
+| LDA | \\#00H | : init ports |
+| STA | Port_A | : output |
+| LDA | \\#33H | : init ports |
+| STA | Port_B_Image | : ram image |
+| STA | Port_B | : output |
+| LDA | \\#0FH | : init ports |
+| STA | Port_C | : output |
+| LDA | \\#DOH | : init ports |
+| STA | Port_D_Image | : ram image |
+| STA | Port_D | : output |
+| LDA | \\#FFh | : milisec timer reload value |
+| STA | Mili_sec | : also preset IRC timer |
+| CLI |  | : Enable IRQ |
+      JER Kick JRQ ; wait for internust to restart
+JSR TI_reset ; go init TI (uses 'Cycle_timer')
+: Preset motor speed, assuming mid battey life, we set the pulse width so that the motor wont be running at 6 volts and burn out. We then predict what the pulse width should be for any voltage.
+
+LDA \\#Mpulse_on ; preset motor speed
+LDA \\#11
+STA Mon_len ; set motor on pulse timing
+LDA \\#05
+STA Moff_len ; set motor off pulse timing
+:EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+: \"Diagnostics and calibration Routine
+:EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+Include
+Diag7.asm ; asm file
+: ***** Only called by diagnostic speech routines ********
+: Be sure to set 'MACRO_HI' and all calls are in that 128 byte block.
+Diag macro:
+STA Macro_Lo ; save lo byte of Macro table entry
+LDA \\#0b8h ; \\#90h ; \\#ex offset to adrs. 400 added
+to diag call
+CLC
+ADC Macro_Lo ; add in offset
+STA Macro_Lo ; update
+LDA \\#01 ; get hi byte ours $400=190 \\mathrm{~h}$
+STA Macro_Hi ; save hi byte of Macro table entry
+JSR Get macro ; go start motor/speech
+JSR Notrdy ; Do / get status for speech and motor
+RTS ;yo!
+: Enter with Areg holding how many 30 mili second delay cycles
+Half delay:
+STA TEMPI ; save timer
+Half d2:
+LDA \\#10 ; set $1 / 2$ sec
+(y * 2.9 mSec )
+STA Cycle_timer ; set it
+Half_d3:
+LDA Cycle_timer ; ck if done
+BNE Half_d3 ; loop
+DEC TEMPI ; ; loop
+BNE Half_d2 ; loop
+RTS ; done
+      Test_byp: ;We assume diagnostic only runs on coldboot
+
+| LDA | \\#FFh | ; initialize word training variable |
+| :-- | :-- | :-- |
+| STA | Temp_ID |  |
+| LDA | \\#FFh | ; |
+| STA | Hungry_counter | ; preset furby's health |
+| STA | Sick_counter |  |
+
+; We sit here and wait for tilt to go away, and just keep incrementing
+; countar until it does. This becomes the new random generator seed.
+Init_rnd:
+INC TEMP1 ; random counter
+LDA Port_D ; get switches
+AND \\#03 ;check tilt \\& invert sw
+BNE Init_rnd ; loop til gone
+LDA TEMP1 ; get new seed
+STA Spcl_seed1 ; stuff it
+STA Seed_1 ; also load for cold boot
+; Use feed sw to generate a better random number
+
+| JSR | Get_feed | ; go test sensor |
+| :-- | :-- | :-- |
+| LDA | Stat_4 | ; get system |
+| AND | \\#Do_feed | ; ck sw |
+| BNE | Feed_rnd ${ }^{1}$ | ; if feed sw then cold boot |
+| JMP | End_coldinit | ; else do warm boot |
+
+Feed_rnd:
+INC TEMP1 ; random counter
+LDA Stat_4 ; system
+AND \\#DFh ; clear any prev feed sw senses
+STA Stat_4 ; update
+JSR Get_feed ; go test sensor
+LDA Stat_4 ; get system
+AND \\#Do_feed ; ck sw
+BNE Feed_rnd ; wait for feed to go away
+LDA TEMP1 ; get new seed
+STA Spcl_seed1 ; stuff it
+STA Seed_1 ; also load for cold boot
+; IF this is a cold boot, reset command then clear EEPROM and
+; chose a new name and voice.
+Do_cold_boot:
+LDA \\#00
+STA Warm_cold ; flag cold boot
+      ```
+    LDA Stat_0 ; system
+    CRA #Say_new_name ;make system say new name
+STA Stat_0 ;
+;****** NOTE : : : : :
+; VOICE AND NAME SLECTION MUST HAPPEN BEFORE EEPRON WRITE OR
+; THEY WILL ALWAYS COME UP 00 because ram just got cleared!!!!!!
+; Random voice selection here
+LDA #80h ;ge random/sequential split
+STA IN_DAT ; save for random routine
+LDX #00 ;make sure only gives random
+LDA #10h ;get number of random selections
+JSR Ran_seq ; go get random selection
+TAX
+LDA Voice_table,X ;get new voice
+STA Rvoice ; set new voice pitch
+; On power up or reset, Furby must go select a new name . . . ahw how
+```
+
+```
+    LSR Random ;get 32 possible
+    AND #1Fh ;get 32 possible
+STA Name ;set new name pointer
+JER Do_EE_write ;write the EEPROM
+```
+
+End_coldinit:
+EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+; * 'Special initialization prior to normal run mode
+; * Jump to Warm_boot when portD wakes us up
+EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+;
+Warm_boot: ;no mal ;tart when Port_D wakes us up.
+JSR S_EEF; M_READ ; read data to ram
+;Eprom_read_byp:
+; If light osc fails, or too dark and that sends us to sleep, we
+; set 'Dark_sl=wp_prev' and save it in EEPROM in 'Seed_2'.
+; when the sleep routine executes, (00 01 based on this bit)
+; When we wake up we recover this bit and it becomes the previous done
+; flag back in 'Stat_0', so that if the osc is
+      ; still dark or failed, Furby wont go back to sleep.
+
+| LDA | Seed_2 | ; from EEPROM |
+| :-- | :-- | :-- |
+| BEQ | No_prevsleep | ; jump if none |
+| LDA | Stat_0 | ; system |
+| ORA | \\#Dark_sleep_prev | ; prev done |
+| STA | Stat_0 | ;update |
+
+No_prevsleep:
+
+LDA Spcl_seed1 ; recover start up random number
+STA Seed_1 ; set generator
+; Pot_timeL2 is save in ram through sleep mode and then reloaded
+; Pot_timeL which is the working register for the motor position.
+This allows startup routines to clear ram without forgetting the
+; last motor position.
+LDA Pot_timeL2 ; get current count
+STA Pot_ imeL ; save in motor routine counter
+; Get age and make sure it is not greater than 3 (age4)
+LDA Age ; get current age
+AND \\#83h ;preserve bit 7 which is 9th age counter bit
+; ; ; ; and insure age not $>3$
+STA Age ; set system
+; *********************
+LDA \\#Bored_reld ; reset timer
+STA Bored_timer ;
+LDA \\#03 ; set timer
+STA Last JR ; timer stops IR from hearing own IR xmit
+JSR Get_light ; go get light level sample
+LDA TEMP1 ; get new count
+STA Light_reff ;update system
+
+LDA Warm_cold ; decide if warm or cold boot
+CMP \\#1ih ;ck for warm boot
+BEQ No_zero ; jump if is
+      | LDA | \\#00 | ; point to macro 0 (SENDS TO SLEEP POSITION) |
+| :--: | :--: | :--: |
+| STA | Macro_Lo |  |
+| STA | Macro_Hi |  |
+| JSR | Get_macro | ; go start motor/speech |
+| JSR | Notrdy | ; Do / get status for speech and motor |
+
+No_zero:
+
+| LDA | \\#11 | ; preset motor speed |
+| :-- | :-- | :-- |
+| STA | Mon_len | ; set motor on pulse timing |
+| LLA | \\#05 | ; set motor to $3 / 4$ speed for speed test |
+| STA | Moff_len | ; set motor off pulse timing |
+
+
+| LDA | \\#00 | ;clear all system sensor requests |
+| :-- | :-- | :-- |
+| STA | Stat_4 | ;update |
+
+; Currently uses 4 tables, one for each age.
+LDA Stat_0 ; system
+ORA \\#Init_motor :flag motor to do speed test
+ORA \\#Init_Mspeed ; 2nd part of test
+STA Stat_0 ;update
+; Do wake up routine :
+
+      ```
+;EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII!
+;' 'IDLE Routine
+;EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII!
+;
+```
+
+Idle:
+; Idle routine is the time slice task master (TSTM) ugh!
+; We must call each routine and interlese with a call to speech
+; to insure we never miss a TI request for data.
+JSR Notrdy ;Do / get status for speech and motor
+; THIS bit is set when light sensor is darker than 'Dark_sleep'
+
+| LDA | Stat_0 | ; system |
+| :-- | :-- | :-- |
+| AND | \\#REQ_dark_sleep | ;ck for req |
+| BEQ | No_dark_req ; jump if not |  |
+| LDA | Stat_0 | ; system |
+| AND | \\#BPh | ; kill req |
+| STA | Stat_0 | ;update |
+| LDA | \\#A6h | ; sleep macro |
+| STA | Macro_Lo |  |
+| LDA | \\#00h | ; sleep macro |
+| STA | Macro_Hi | ; |
+| JMP | Start_macro | ; go say it |
+
+No_dark_req:
+; When any sensor or timer calls the \"start_macro\" routine, the
+; Macro_Lo \\& Macr_Hi are saved. Everyone jumps back to Idle and when
+; speech/motor routines are finished, this routine will look at the
+; macros that were used and execute another function if a match is
+found.
+; Checks for his name first, then any IR to send, and finally, the sleep
+; commands. The temp macro buffers are cleared before
+
+```
+Spcl_Name1:
+    LDX #00 ; offset
+Spcl_Name2:
+    LDA Ck_Name_table,X ;ck lo byte
+    CMP #FFh ;ck for end of table (note 255 cant execute)
+    BEQ Spcl_IR1 ;done if is
+    CMP Req_macro_lo ;ck against last speech request
+    BNE Not_Name2 ; jump if not
+    INX ; to hi byte
+    LDA Ck_Name_table,X ;ck hi byte
+    CMP Req_macro_hi ;ck against last speech request
+```
+      Spcl_macro1:
+LDX \\#00 ; offset
+Spcl_sleep1:
+LDA sleepy_table, X ;ck lo byte
+CMP \\#FFh ; ck for end of table (note 255 cant execute)
+BEQ Ck_macro_dn ; done if is
+CMP Req macro_lo ;ck against last speech request
+BNE Not_sleepy2 ; jump if not
+INX ; to hi byte
+LDA sleepy_table, X ; ck hi byte
+CMP Req macro_hi ; ck against last speech request
+BNE Not_sleepy: ; jump if not
+LDA \\#00 ; clear macro pointers for wake up
+STA Req macro_lo
+STA Req macro_hi
+;mod F-rels2 ;
+Before going to sleep send sleep cmnd to all others.
+LDA \\#15 ;
+STA TEMP2 ; xmit temp ram
+LDA \\#FDh ; TI command for IR xmit
+STA TEMP1 ;
+JSR Xmit_TI ; go send it
+; need to wait $>600$ milisec before going to sleep because we arent using ;busy flags from TI and need to make sure it is done transmitting the ;I.R. code, the sleep routine kills the TI and it would never send the cmnd.
+
+LDA \\#25 ;how many 30 milisec cycles to call
+JSR Half_delay ; do 30 milisec delay cycles
+;end mod
+JMP GoToSleep ; nity-night
+Not_sleepy2:
+INX ;
+Not_sleepy3:
+INX ;
+JMP Spcl_sleep1 ; loop til done
+Ck macro_dn:
+LDA \\#00 ; clear macro pointers for wake up
+STA Req macro_lo
+STA Req macro_hi
+JMP Test_new_name ; on to task master
+; ; ; ; ; ; SLEEP TABLE \\& IR table ..... MOVE TO INCLUDE FILE LATER
+Sleepy_table:
+DW 91 ;hangout
+DW 166 ; wake up
+DW 167 ; wake up
+DW 168 ; wake up
+DW 169 ; wake up
+      | DW | 258 | ; Back sw |
+| :--: | :--: | :--: |
+| DW | 259 | ; Back sw |
+| DW | 260 | ; Back sw |
+| DW | 403 | ; IR |
+| DW | 413 | ; IR |
+| DW | 429 | ; IR |
+| DB | FFh,FFh | ; FF FF is table terminator |
+
+
+| Iramit_table: |  |  |
+| :--: | :--: | :--: |
+| DW |  | ; trigger macro |
+| DB | 00 | ; which IR command to call ( 0 - 0f) |
+| DW | 13 | ; trigger macro |
+| DB | 00 | ; which IR command to call ( 0 - 0f) |
+| DW | 17 | ; trigger macro |
+| DB | 00 | ; which IR command to call ( 0 - 0f) |
+| DW | 19 | ; trigger macro |
+| DB | 00 | ; which IR command to call ( 0 - 0f) |
+| DW | 26 | ; trigger macro |
+| DB | 00 | ; which IR command to call ( 0 - 0f) |
+| DW | 29 | ; trigger macro |
+| DB | 00 | ; which IR command to call ( 0 - 0f) |
+| DW | 33 | ; trigger macro |
+| DB | 00 | ; which IR command to call ( 0 - 0f) |
+| DW | 34 | ; trigger macro |
+| DE | 00 | ; which IR command to call ( 0 - 0f) |
+| DW | 44 | ; trigger macro |
+| DB | 00 | ; which IR command to call ( 0 - 0f) |
+| DW | 45 | ; trigger macro |
+| DB | 00 | ; which IR command to call ( 0 - 0f) |
+| DW | 48 | ; trigger macro |
+| DB | 00 | ; which IR command to call ( 0 - 0f) |
+| DW | 50 | ; trigger macro |
+| DB | 00 | ; which IR command to call ( 0 - 0f) |
+| DW | 55 | ; trigger macro |
+| DB | 00 | ; which IR command to call ( 0 - 0f) |
+| DW | 60 | ; trigger macro |
+| DB | 00 | ; which IR command to call ( 0 - 0f) |
+| DW | 149 | ; from rooster wake up |
+| DB | 00 | ; |
+| DW | 352 | ; trigger macro |
+| DB | 01 | ; which IR command to call ( 0 - 0f) |
+| DW | 363 | ; trigger macro |
+| DB | 01 | ; which IR command to call ( 0 - 0f) |
+| DW | 393 | ; trigger macro |
+| DB | 01 | ; which IR command to call ( 0 - 0f) |
+| DW | 248 | ; trigger macro |
+| DB | 02 | ; which IR command to call ( 0 - 0f) |
+| DW | 313 | ; trigger macro |
+| DB | 02 | ; which IR command to call ( 0 - 0f) |
+| DW | 86 | ; trigger macro |
+| DB | 03 | ; which IR command to call ( 0 - 0f) |
+| DW | 93 | ; trigger macro |
+| DB | 03 | ; which IR command to call ( 0 - 0f) |
+| DW | 339 | ; trigger macro |
+      | DB | 03 | ; which IR command to call ( 0 - 0f ) |
+| :--: | :--: | :--: |
+| DW | 344 | ; trigger macro |
+| DB | 03 | ; which IR command to call ( 0 - 0f ) |
+| DW | 351 | ; trigger macro |
+| DB | 03 | ; which IR command to call ( 0 - 0f ) |
+| DW | 404 | ; trigger macro |
+| DB | 04 | ; which IR command to call ( 0 - 0f ) |
+| DW | 405 | ; trigger macro |
+| DB | 04 | ; which IR command to call ( 0 - 0f ) |
+| DW | 293 | ; trigger macro |
+| DB | 05 | ; which IR command to call ( 0 - 0f ) |
+| DW | 394 | ; trigger macro |
+| DB | 05 | ; which IR command to call ( 0 - 0f ) |
+| DW | 406 | ; trigger macro |
+| DB | 05 | ; which IR command to call ( 0 - 0f ) |
+| DW | 414 | ; trigger macro |
+| DB | 05 | ; which IR command to call ( 0 - 0f ) |
+| DW | 422 | ; trigger macro |
+| DB | 05 | ; which IR command to call ( 0 - 0f ) |
+| DW | 395 | ; trigger macro |
+| DB | 06 | ; which IR command to call ( 0 - 0f ) |
+| DW | 421 | ; trigger macro |
+| DB | 06 | ; which IR command to call ( 0 - 0f ) |
+| DW | 423 | ; trigger macro |
+| DB | 06 | ; which IR command to call ( 0 - 0f ) |
+| DW | 296 | ; trigger macro |
+| DB | 07 | ; which IR command to call ( 0 - 0f ) |
+| DW | 415 | ; trigger macro |
+| DB | 07 | ; which IR command to call ( 0 - 0f ) |
+| DW | 416 | ; trigger macro |
+| DB | 07 | ; which IR command to call ( 0 - 0f ) |
+| DW | 288 | ; trigger macro |
+| DB | 08 | ; which IR command to call ( 0 - 0f ) |
+| DW | 11 | ; trigger macro |
+| DB | 09 | ; which IR command to call ( 0 - 0f ) |
+| DW | 12 | ; trigger macro |
+| DB | 09 | ; which IR command to call ( 0 - 0f ) |
+| DW | 27 | ; trigger macro |
+| DB | 09 | ; which IR command to call ( 0 - 0f ) |
+| DW | 42 | ; trigger macro |
+| DB | 09 | ; which IR command to call ( 0 - 0f ) |
+| DW | 57 | ; trigger macro |
+| DB | 09 | ; which IR command to call ( 0 - 0f ) |
+| DW | 235 | ; trigger macro |
+| DB | 09 | ; which IR command to call ( 0 - 0f ) |
+| DW | 236 | ; trigger macro |
+| DB | 09 | ; which IR command to call ( 0 - 0f ) |
+| DW | 237 | ; trigger macro |
+| DB | 09 | ; which IR command to call ( 0 - 0f ) |
+| DW | 238 | ; trigger macro |
+| DB | 09 | ; which IR command to call ( 0 - 0f ) |
+| DW | 261 | ; trigger macro |
+| DB | 09 | ; which IR command to call ( 0 - 0f ) |
+| DW | 262 | ; trigger macro |
+      | DB | 09 | ; | which IR command to call ( 0 - 0f ) |
+| :--: | :--: | :--: | :--: |
+| DW | 396 | ; trigger macro |  |
+| DB | 09 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 409 | ; trigger macro |  |
+| DB | 09 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 399 | ; trigger macro |  |
+| DB | 10 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 407 | ; trigger macro |  |
+| DB | 10 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 408 | ; trigger macro |  |
+| DB | 10 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 272 | ; trigger macro |  |
+| DB | 11 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 273 | ; trigger macro |  |
+| DB | 11 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 274 | ; trigger macro |  |
+| DB | 11 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 275 | ; trigger macro |  |
+| DB | 11 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 400 | ; trigger macro |  |
+| DB | 11 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 418 | ; trigger macro |  |
+| DB | 11 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 425 | ; trigger macro |  |
+| DB | 11 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 426 | ; trigger macro |  |
+| DB | 11 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 336 | ; trigger macro |  |
+| DB | 12 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 342 | ; trigger macro |  |
+| DB | 12 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 401 | ; trigger macro |  |
+| DB | 12 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 92 | ; trigger macro |  |
+| DB | 13 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 411 | ; trigger macro |  |
+| DB | 13 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 419 | ; trigger macro |  |
+| DB | 13 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 427 | ; trigger macro |  |
+| DB | 13 | ; | which IR command to call ( 0 - (f) ) |
+| DW | 291 | ; trigger macro |  |
+| DB | 14 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 402 | ; trigger macro |  |
+| DB | 14 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 412 | ; trigger macro |  |
+| DB | 14 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 428 | ; trigger macro |  |
+| DB | 14 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 256 | ; trigger macro |  |
+| DB | 15 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 257 | ; trigger macro |  |
+| DB | 15 | ; | which IR command to call ( 0 - 0f ) |
+| DW | 420 | ; trigger macro |  |
+      DB 15 :which IR command to call ( 0 - 0f )
+;mod F-rels2 ; send sleep if recv sleep on IR
+DW 403 ; trigger macro
+DB 15 :which IR command to call ( 0 - 0f )
+DW 413 ; trigger uacro
+DB 15 :which IR command to call ( 0 - 0f )
+; end mod
+DB FFh,FFh ;FF FF is table terminator
+
+Ck_Name_table:
+DW 97
+DW 248
+DW 393
+DW 414
+DW 149
+DW 305
+DW 404
+DW 421
+DB FFh,FFh ; FF FF is table terminator
+; Say name
+Test_new_name:
+
+| LDA | Stat_0 | ; system |
+| :-- | :-- | :-- |
+| AND | \\#Say_new_name | ; make system say new name |
+| BEQ | Nosayname | ; bypass it clear |
+| LDA | Stat_0 |  |
+| AND | \\#DFh | ; kill req for startup new name |
+| STA | Stat_0 | ; update |
+| LDA | Name | ; current setting for table offset |
+| CLC |  |  |
+| ROL | A | $: 2$ 's comp |
+| TAX |  |  |
+| LDA | Name_table,X | ; get 10 byte |
+| STA | Macro_Lo | ; save 10 byte of Macro table entry |
+| INX |  |  |
+| LDA | Name_table,X | ; get hi byte |
+| STA | Macro_Hi | ; save hi byte of Macro table entry |
+| JSR | Get_macro | ; go start motor/speech |
+| JSR | Notrdy | ; Do / get status for speech and motor |
+
+Nosayname:
+; ***** below routines run at 742 mSec loops
+; Timer B sets 'Millisec_flag' each 742 milliseconds
+      
+
+```
+; none active
+;;
+; Task 0 : scans all active requests from sensors looking for a trigger.
+; If any are set then scan through the game select tables for each game
+; looking for a match, and increment the counter each time a succesive
+; match is found. If one is not in sequence, then that counter is reset
+to
+; zero. Since all counters are independent, then the first one to
+completion
+; wins and all others are zeroed.
+; All sensor triggers are in one status byte so we can create a number
+; based on who has been triggered (we ignore the I.R. sensor).
+; The following bits are in Stat_4 and are set when they are triggered
+; by the individual sensor routines :
+; 00 = none
+; 01 = Loud sound
+; 02 = Light change brighter
+; 04 = Light change darker
+; 08 = Front tummy switch
+; 10 = Back switch
+; 20 = Feed switch
+; 40 = Tilt switch
+```
+      ; $8^{\\circ}=$ Invert switch
+; We assi 1 a single bit per game or egg senario. Each time a
+; sensor :s triggered, we increment the counter and test all eggs for
+; a match. If a particular sensor doesn match, then set its
+disqualified
+; bit and move on. If at any time all bits are set, then clear counter to
+; zero and start over. When a table gets an FF then that egg is executed.
+; Each time a sensor is triggered, the system timer is reset. This timer ; called 'Sensor_timer'is reset with 'Global_time' equate. This timer is also
+; used for the random sequential selection of sensor responses. If this
+; timer goes to zero before an egg is complete, ie, Furby has not been played
+; with, then clear all disqualified bits and counters.
+; Currently there are 24 possible eggs. (3 bytes)
+;Qualify1:
+;DQ_fortune EQU 01 ;bit $0=$ fortune teller
+;DQ_rap EQU 02 ;bit $1=$ rap song
+;DQ_hide EQU 04 ;bit $2=$ hide and seek
+;DQ_simon EQU 08 ;bit $3=$ simon says
+;DQ_burp EQU 10 ;bit $4=$ burp attack
+;DQ_name EQU 20 ;bit $5=$ say name
+;DQ_twinkle EQU 40 ;bit $6=$ sing song
+;DQ_rooste EQU 80 ;bit $7=$ rooster-love you
+;Qualify2: ; ; ; ; removed due to lack of RAM
+bit $0=$
+bit $1=$
+bit $2=$
+bit $3=$
+bit $4=$
+bit $5=$
+bit $6=$
+bit $7=$
+; Test triggers here
+Ck game:
+LDA Sensor_timer ;ck if no action for a while
+LDA Bored_timer ;ck if no action for a while
+BNE Ck_gamactv ; jump if system active
+JSR Clear_games ; go reset all other triggers and game pointers
+Ck_gamactv:
+LDA Qualify1 ;test if all are disqualified
+CMP \\#FFh ; compare activ bits only
+BNE Ck_anysens ; jump if some or all still active
+LDA Qualify2 ; test if all are disqualified
+CMP \\#00h ; compare activ bits only
+BNE Ck_anysens ; jump if some or all still active
+JSR Clear_games ; go reset all other triggers and game pointers
+Ck_anysens:
+LDA Stat_4 ;ck if any sensor is triggered
+BNE Ck_gaml ; go ck games if any set
+JMP Ck_bored ; bypass if none
+      | STA | Qualify1 | ;update system |
+| :--: | :--: | :--: |
+| JMP | Ck_gam7 | ;check next egg |
+| Ck_gam6a: |  |  |
+| LDA | Name_egg+1,X | ; get current data +1 to see if end of egg |
+| CMP | \\#FFh | ; test if end of table and start of game |
+| BNE | Ck_gam7 | ; jump if not at end |
+| JSR | Clear_games | ; go reset all other triggers and game pointers |
+| LDA | Game_1 | ; get system |
+| ORA | \\#Name_mode | ; start game mode |
+| STA | Game_1 | ;update |
+| LDA | \\#00 | ; clear all pointers |
+| STA | Stat_5 | ; system |
+| JMP | Idle | ; done |
+
+Ck_gam7: ; twinkle song
+LDA Qualify1 ;update game qualification
+AND \\#DQ_twinkle ;check if dis-qualified bit
+BNE Ck_gam8 ; bail out if is
+LDA Twinkle_egg, X ; get current data
+AND Stat_4 ; compare against sensor trigger
+BNE Ck_gam7a ; if set then good compare
+LDA Qualify1 ;update game qualification
+ORA \\#DQ_twinkle ; set dis-qualified bit
+STA Qualify1 ;update system
+JMP Ck_gam8 ; check next egg
+Ck_gam7a:
+LDA Twinkle_egg+1,X ; get current data +1 to see if end of egg
+CMP \\#FFh ; test if end of table and start of game
+BNE Ck_gam8 ; jump if not at end
+JSR Clear_games ; go reset all other triggers and game pointers
+LDA Game_1 ; get system
+ORA \\#Twinkle mode ; start game mode
+STA Game_1 ;update
+LDA \\#00 ; clear all pointers
+STA Stat_5 ; system
+JMP Idle ; done
+Ck_gam8: ; roos' or loves you
+LDA Qualify1 ;update game qualification
+AND \\#DQ_rooster ; check if dis-qualified bit
+BNE Ck_gam9 ; bail out if is
+LDA Rooster_egg,X ; get current data
+AND Stat_4 ; compare against sensor trigger
+BNE Ck_gam8a ; if set then good compare
+LDA Qualify1 ;update game qualification
+ORA \\#DQ_rooster ; set dis-qualified bit
+STA Qualify1 ;update system
+JMP Ck_gam9 ; check next egg
+Ck_gam8a:
+LDA Rooster_egg+1,X ; get current data +1 to see if end of egg
+CMP \\#FFh ; test if end of table and start of game
+BNE Ck_gam9 ; jump if not at end
+JSR Clear_games ; go reset all other triggers and game pointers
+LDA Game_1 ; get system
+ORA \\#Rooster_mode ; start game mode
+STA Game_1 ;update
+LDA \\#00 ; clear all pointers
+STA Stat_5 ; system
+JMP Idle ; done
+      # Ck gam9: 
+
+
+      DB 20h, 20h, 20h, 10h, FFh ; feed,f oed,feed,back
+Name_egg:
+DB 08h, 08h, 08h, 10h, FFh ; frnt, frnt, frnt, back
+Twinkle_egg:
+DB 01h, 01h, 01h, 10h, FFh ; and, and, and, back
+Rooster_egg:
+DB 04h, 04h, 04h, 10h, FFh ; light, light, light, back
+;
+; Normal task scan of sensc:s and timers.
+Ck_bored:
+LDA Bored_timer ;ck if bored ... $=0$
+BNE Ck_tski ; jump if not bored
+; Currently uses 4 tables, one for each age.
+LDA \\#Bored_split ; get random/sequential split
+STA IN_DAT ; save for random routine
+LDX \\#Seq_bored ; get number of sequential selections
+LDA \\#Ran_bored ; get number of randoms
+JSR Ran_seq ; go decide random/sequential
+BLS Bored_ran ; Random mode when carry SET
+LDX Bored_count ; save current
+INC Bored_count ; if not then next table entry
+LDA Bored_count ; get
+CLC
+SBC \\#Seq_bored-1 ;ck if > assignment
+BCC Bored_side ; jump if <
+LDA \\#00 ; reset to 1st entry of sequential
+STA Bored_count ;
+Bored_s'de:
+; current count
+Bored_ran:
+JSR Decid_age ; do age calculation for table entry
+LDX TEMPO ; age offset
+LDA Bored_S1,X ; get new sound/word
+STA Macro_Lo ; save lo byte of Macro table entry
+INX
+LDA Bored_S1,X ; get new sound/word
+STA Macro_Hi ; save hi byte of Macro table entry
+JMP Start_macro ; go set group/table pointer for motor \\& spch
+;
+Ck_tski:
+LDA Task_ptr
+CMP \\#01 ; decide which
+BNE Ck_tsk4 ; jump if not
+JMP CR_tilt ; Ck ball switch side sense
+Ck_tsk4:
+CMP \\#02 ; c\\&cide which
+BNE Ck_tsk5 ; jump if not
+      BNE NMM_out ; wait til 0
+LDA Drift_rev ;
+BNE NMM_out ; wait til 0
+; Set a timer and ck counter 'motorstopad' (incremented with wheel count)
+; to see if it changed. When it stops changing then the motor has stopped.
+LDA motorstopad ;ck for 0
+BNE NMM_out ; wait till 0
+LDA TEMP1 ; get last motor count
+CMP Pot_timeL ; ck if changed
+BEQ Motor_done ; jump if same (motor finally stopped)
+LDA Pot_timeL ; get current
+STA TEMP1 ;
+LDA \\#15 ; reset timer (8)
+STA motorstopad ;
+JMP NMM_out ; wait another cycle
+Motor_done:
+LDA Cycle_timer ; get step timer
+BNE NMM_out ; wait til 0
+STA Drift_counter ; use as a temp register
+JSR Motor_data ; get data
+LDA \\#00
+STA TEMP1 ; reset
+LDA Motor_lo ; get data (use for lbyte table (DB)).
+CMP \\#FFh ; is it table end (dont inc off end)
+BNE Motor_pause ; more
+LDA Stat_2 ; get system
+AND \\#Motor_ntseek ; clear seek flag
+STA Stat_2 ; update system
+NMM_out:
+JMP Endtask_2 ; seek complete
+Motor_pause:
+LDA Motor_lo ; check for pause request on this step (00)
+BNE More_motor ; more
+JMP Motor_killend ; set cycle timer and :ait for next motor
+step
+; To initialize the motor call table, the originator loads 'Which_motor' ; with the pointer and calls 'Decide_motor'.
+
+Ck_Macro:
+JSR Next_macro ; get data
+STA Which_motor ; save motor seek pointer
+JSR Next_macro ; get data
+STA Mgroup ; save high byte
+CMP \\#00h ; check for end of macro
+BNE Got_macro ; do it if not 0
+LDA Which_motor ; ck lo byte for 0
+CMP \\#00h ; check for end of macro
+      ; increment, based on new direction, to compensate for the slot which ; will be counted twice.
+
+| LDA | Motor_lo | ; get data |
+| :--: | :--: | :--: |
+| CMP | Pot_timeL | ; ck for same |
+| BNE | Tst_fwdmore | ; jump if not 0 |
+| LDA | Stat_2 | ; get system |
+| AND | \\#Motor_inactv | ; clear activ flag |
+| STA | Stat_2 | ; update system |
+| JMP | Endtask_2 | ; bail out |
+| Tst_fwdmore: |  |  |
+| CLC |  |  |
+| SBC | Pot_timeL | ; get current position |
+| BCC | Go_rev | ; if borrow then dec command |
+
+Go_fwd:
+LDA
+*.
+AND \\#Pos_sen
+BEQ Go_fwd2
+LDA Stat_2
+AND \\#Motor_fwd
+BNE Go_fwd2
+DEC
+; get I R detector
+; bypass if sensor is over slot in wheel ; get system
+; get direction motor was last headed
+;if set then new direction is same as last ; compensate for counter direction reversal
+
+Go_fwd2:
+LDA Stat_2
+; get system
+ORA \\#Motor_fwd
+; set = motor fwd (inc)
+ORA \\#Motor_actv ; set motor in motion
+STA Stat_2
+; update system
+LDA Stat_3
+; get current status
+ORA \\#Motor_off ; turn both motors off
+AND \\#Motor_fwds ; move motor in fwd dir
+JMP End_rev ; go finish port setup
+Go_rev:
+LDA
+ORA
+; get I R detectir
+AND \\#Pos_sen
+BEQ Go_rev2
+; bypass if sensor is over slot in wheel
+LDA Stat_2
+; get system
+AND \\#Motor_fwd ; get direction motor was last headed
+BEQ Go_rev2 ; if clr then new direction is same as last INC Pot_timeL2 ; compensate for counter direction revercal
+
+Go_rev2:
+LDA Stat_2
+; get system
+AND \\#Motor_rev ; clear fwd flag
+ORA \\#Motor_actv ; set motor in motion
+STA Stat_2
+; update system
+LDA Stat_3
+; get current status
+ORA \\#Motor_off ; turn both motors off
+AND \\#Motor_revs ; move motor in rev dir
+End_rev:
+STA Stat_3
+JMP Endtask_2 ; done
+Do_motor:
+; f(1) (1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(1)(
+      ; jmp Byp_motorS3
+
+| LDA | Stat_0 | ; system |
+| :-- | :-- | :-- |
+| AND | \\#Init_Mspeed | ; ck if motor to do speed test |
+| BEQ | Byp_motorS3 ; only runs on wake up |  |
+| LDA | Stat_0 | ; system |
+| AND | \\#Init_motor ; ck if motor to do speed test |  |
+| BEQ | Byp_motorS2 ; only runs on wake up |  |
+| LDA | Stat_0 | ; system |
+| AND | \\#Nt_Init_motor | ; done |
+| STA | Stat_0 | ; update |
+| LDA | \\#00 | ; reset opto speed counter |
+| STA | Mot_opto_cnt | ; setit |
+| LDA | \\#Opto_spd_reld | ; get timer value for speed test |
+| STA | Mot_speed_cnt | ; set it |
+
+Byp_motorS2:
+LDA Mot_speed_cnt ;get timer
+BNE Byp_motorS3 ; do nothing if $>0$
+
+
+Byp_motorS3:
+;11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
+      ```
+; DB 58,60,60,60,60,60,60,60,60,60,60
+; DB 20,22,24,27,30,32,34,36,38
+; DB 46,48,50,52,54,56,58,60,60,60,60,60
+    DB 25,26,27,28,30,32,34,36,38,42,\\&5
+    DB 48,51,54,57,60,60,60,60,60,60,60
+;
+On wake up when the motor moves from position 10 to 134, we
+; time it and increment a counter which is used to access this table
+; and get the motor on pulse value.
+; Refer to power up preset pulse width for table pointers
+Motor_speed:
+    DB Mpulse_on,Mpulse_on,Mpulse_on
+    DB Mpulse_on,Mpulse_on,Mpulse_on
+    DB Mpulse_on,Mpulse_on,Mpulse_on
+    DB Mpulse_on,Mpulse_on,Mpulse_on ;f,10
+    DB Mpulse_on,Mpulse_on,Mpulse_on
+    DB Mpulse_on,Mpulse_on,Mpulse_on
+    DB Mpulse_on,Mpulse_on,Mpulse_on-1
+    DB Mpulse_on-2,Mpulse_on-3,Mpulse_on-4 ;1b,1c
+    DB Mpulse_on-5,Mpulse_on-5,Mpulse_on-6
+    DB Mpulse_on-7,Mpulse_on-8,Mpulse_on-9
+    DB Mpulse_on-9,Mpulse_on-9,Mpulse_on-9
+    DB Mpulse_on-9,Mpulse_on-9,Mpulse_on-9
+    DB Mpulse_on-9,Mpulse_on-9,Mpulse_on-9
+    DB Mpulse_on-9,Mpulse_on-9,Mpulse_on-9
+DB Mpulse_on-9,Mpulse_on-9,Mpulse_on-9
+```
+
+;
+; This finds the 16 bit adrs of the table and points the motor
+
+      
+
+Get_macro:
+; Motor noise is triggering sound sensor hardware, so this sets the ; previously sound done flag, and the system will not respond to the ; sound sensor until the sound trigger line goes low and clears prev done.
+
+| LDA | Stat_3 | ; system |
+| :-- | :-- | :-- |
+| ORA | \\#Sound_stat | ; set prev dn |
+| STA | Stat_3 | ; set prev dn |
+
+;------------------- end sound flag
+      INC Age_counter ;rolls over tc inc age
+BNE Same_age ; jump if no roll over
+
+; AGE INCREMENT uses bit 7 to double age counter
+LDA Age ;get bit 7 - set = counter rolled over twice
+AND \\#80h ;get bit 7
+BNE Roll_age ;bit 7 set so inc age
+LDA Age
+ORA \\#80h ; set bit 7 for next counter roll over
+STA Age ;update
+JMP Same_age ; done
+
+Roll_age:
+INC Age ; just grew up some
+LDA Age
+AND \\#07h ; clear bit 7
+STA Age
+CLC
+SBC \\#03 ; make sure it isnt > 3 (0-3 age)
+BCC Same_age ; jump if <4
+LDA \\#03 ; max age
+STA Age ;
+Same_age:
+;------------------- end age
+
+| LDA | Stat_2 | ; system |
+| :-- | :-- | :-- |
+| ORA | \\#Macro_actv | ; flag request |
+| STA | Stat_2 | ; update |
+| CLC |  | ; do speech |
+| ROL | Macro_Lo | ; move hi bit to carry \\& get 2's offset |
+| ROL | Macro_Hi | ; move carry into one of four group ptr |
+
+LDA Macro_Lo ; offset ptr
+LDA Macro_Hi ; get current group pointer
+CMP \\#03 ; is it table group 4
+BEQ Dec_macro4 ; jump if is
+CMP \\#02 ; is it table group 3
+BEQ Dec_macro3 ; jump i: is
+CMP \\#01 ; is it table group 2
+BEQ Dec_macro2 ; jump if is
+Dec macro1: ; table group 1
+LDA Macro_grp1,X ; get lo pointer
+STA Macro_Lo ; working buffer
+INX ; $\\mathrm{X}+1$
+LDA Macro_grp1, X ; get hi pointer
+JMP Dec_macro_end ; go finish load
+Dec macro2:
+LDA Macro_grp2, X ; get lo pointer
+STA Macro_Lo ; working buffer
+INX ; $\\mathrm{X}+1$
+;
+LDA Macro_grp2, X ; get hi pointer
+JMP Dec_macro_end ; go finish load
+Dec macro3:
+LDA Macro_grp3, X ; get lo pointer
+STA Macro_Lo ; working buffer
+INX ; $\\mathrm{X}+1$
+      JSR Clear_all_gam
+LDA \\#Bored_reld ;reset bored timer
+STA Bored_timer ;
+LDA Name ; current setting for table offset
+CLC
+ROL A ; 2's comp
+TAX
+LDA Name_table, X ; get lo byte
+STA Macro_Lo ;save lo byte of Macro table entry
+INX
+LDA Name_table, X ; get hi byte
+STA Macro_Hi ;save hi byte of Macro table entry
+JMP Start_macro ;go set group/table pointer for motor \\& spch
+;Twinkle song egg
+; When song is complete, if both front and back switches are pressed
+; we goto deep sleep. That means only the invert can wake us up, not
+; the invert switch.
+Twinklsnd_lo EQU \\#D5h ;using macro 469
+Twinklsnd_hi EQU \\#01h ;
+Sleep_lo EQU \\#A6h ;using macro 166 (before going to sleep)
+Sleep_hi EQU \\#00h ;
+Game_twinkle:
+JSR Clear_all_gam
+LDA \\#03 ; song counter
+STA HCEL_LO ; set
+Gtwnk:
+DEC HCEL_LO ; -1
+LDA Stat_2 ;Get system clear done flags
+AND \\#Not_tch_ft ; clear previously inverted flag
+AND \\#Not_tch_bk ; clear previously inverted flag
+STA Stat_2 ;update
+LDA \\#Bored_reld ;reset bored timer
+STA Bored_timer ;
+LDA \\#Twinklsnd_lo ; get macro lo byte
+STA Macro_Lo ;save lo byte of Macro table entry
+LDA \\#Twinklsnd_hi ; get macro hi byte
+STA Macro_Hi ;save hi byte of Macro table entry
+JSR Get_macro ;go start motor/speech
+JSR Notify ;Do / get status for speech and motor
+JSR Test_all_sens ; get status
+JSR Test_all_sens ; get status 2nd time for debounce
+LDA Stat_4 ; switch status
+AND \\#18h ; isolate front and back switches
+CMP \\#18h ;
+BEQ Start_sleep ; if both switches pressed, goto sleep
+LDA HCEL_LO ; get song loop counter
+BNE Gtwnk ; loop
+      JMP Idle
+; not so egg complete
+Start_sleep:
+LDA \\#Sleep_lo ;get macro lo byte
+STA Macro_Lo ; save lo byte of Macro table entry
+LDA \\#Sleep_hi ;get macro hi byte
+STA Macro_Hi ; save hi byte of Macro table entry
+JSR Get_macro ; go start motor/speech
+JSR Notrdy ;Do / get status for speech and motor
+LDA \\#11h ; set deep sleep mode
+STA Deep_sleep ;
+JMP GoToSleep ; nity-night
+; Rooster loves you egg
+Roostersnd_lo EQU \\#D4h ;using macro 468
+Roostersnd_hi EQU \\#01h ;
+
+Game_rooster:
+JSR Clear_all_gam
+LDA \\#Bored_reld ; reset bored timer
+STA Bored_timer ;
+LDA \\#Roostersnd_lo ; get macro lo byte
+STA Macro_Lo ; save lo byte of Macro table entry
+LDA \\#Roostersnd_hi ; get macro hi byte
+STA Macro_Hi ; save hi byte of Macro table entry
+JMP Start_ma cro ; go set group/table pointer for motor \\& spch
+; If a game requires sensor input without triggering the normal
+; sensor cycle for speech, then this rtn will check all sensors for
+; change and the calling game can check for the appropriate trigger
+; DO NOT USE I.R. SENSOR SINCE ITS RAM LOCATIONS ARE USED IN GAMES
+Test_all_sens:
+JSR Get_back ;
+JSR Get_Tilt ;
+JSR Get_invert ;
+JSR Get_front ;
+JSR Get_light ;
+JSR Get_sound ;
+JSR Get_feed ;
+RTS ; back to game
+; **** Side all switch triggers when ball falls off center and I/O goes
+      ```
+hi.
+CK_tilt: ;tilt sensor
+    JSR Get_Tilt ;go ck for sensor trigger
+    BCS Normal_tilt ;go fini normal spch/motor table
+    JMP Idle ;no request
+Get_Tilt: ;this is the subroutine entry point.
+    LDA Port_D ;get I/O
+    AND *Ball_side ;ck if we tilted on side
+    BNE Do_bside ; jump if hi
+    LDA Stat_2 ;Get system
+    AND #Not_bside ;clear previously on side flag
+    STA Stat_2 ;update
+Side_out: \\int
+    CLC ;clear indicates no request
+    RTS
+Do_bside:
+    LDA Stat_2 ; system
+    AND #Bside_dn ;ck if previously done
+    BNE Side_out ; jump if was
+    LDA Stat_2 ;get system
+    ORA #Bside_dn ;flag set, only execute once
+    STA Stat_2 ;update system
+    LDA Stat_4 ;game mode status
+    ORA #Do_tilt ;flag sensor is active
+    STA Stat_4 ;update
+    SEC ; carry set indicates sensor is triggered
+RTS
+Normal_tilt: ; Idle rtn jumps here to complete speech/motor table
+;;;;;;; also for testing, when tilt is triggered, it resets all
+    ; easter egg routines to allow easy entry of eggs.
+JSR Clear_all_gam ;
+JSR Life ; go tweek health/hungry counters
+BCS More_tilt ; if clear then do sensor else bail
+JMP Idle ;done
+More_tilt:
+```
+
+```
+; * * * * * * * * * * * * * * * * * * * * * * * * * * *
+    LDA #Tilt_split ;get random/sequential split
+    STA IN_DAT ; save for random routine
+    LDX #Seq_tilt ; get how many sequential selections
+    LDA #Ran_tilt ; get number of random alections
+JSR Ran_seq ; go decide random/sequential
+```
+      
+
+Normal_invert:
+
+JSR Life ;go tweek health/hungry counters
+BCS More_invert ;if clear then do sensor else bail
+JMP Idle ; done
+More_invert:
+
+| LDA | \\#Invert_split | ; get random/sequential split |
+| :-- | :-- | :-- |
+| STA | IN_DAT | ; save for random routine |
+
+LDX \\#Seq_invert ; get how many sequential selections
+LDA \\#Ran_invert ; get number of random alections
+JSR Ran_seq ; go decide random/sequential
+LDX Sensor_timer ; get current for craining subroutine
+BCS Invert_rnd ; Random mode when carry SET
+LDA Sensor_timer ;ck if timed out since last action
+B\\&Q Invrt_reset ;yep
+LDA Invrt_count ; save current
+STA BIT_CT ;temp store
+INC Invrt_count ; if not then next table entry
+LDA Invrt_count ; get
+      STA DAC2 ; clear feed sw enable
+; LDA Stat_3 ; get system
+; AND \\#Feed_dn ;ck if prev done
+; BNE Feed_out ; jump if was
+; LDA Stat_3 ; get system
+; ; Elag set, only execute once
+; ; Iagdate system
+; ; Iagate system
+; ; game mode status
+; flag sensor is active
+; ; update
+SEC ; set when sensor is triggered
+RTS
+Normal_feed: ; enter here to complete speech/motor
+; health table calls here and decision for which speech pattern
+LDA \\#Food ; each feeding increments hunger counter
+CLC
+ADC Hungry_counter ; feed him!
+BCC Feeding_dn ; jump if no roll over
+LDA \\#FEh ; max count
+Feeding_dn:
+STA Hungry_counter ; update
+;;;;; JSR Life ; go finish sick/hungry speech
+LDA \\#Feed_split ; get random/sequential split
+STA IN_DAT ; save for random routine
+LDX \\#Seq_feed ; get how many sequential selections
+LDA \\#Ran_feed ; get random assignment
+JSR Ran_seq ; go decide random/sequential
+LDX Sensor_timer ; get current for training subroutine
+BCS Feedrand ; Random mode when carry set
+LDA Sensor_timer ; ck if timed out since last action
+BEQ Feed_reset ; yep
+LDA Feed_count ; save current
+STA BIT_CT ; temp store
+INC Feed_count ; if not then next table entry
+LDA Feed_count ; get
+CLC
+SBC \\#Seq_feed-1 ; ck if > assignment
+BCC Feed_sut ; jump if <
+LDA \\#Seq_feed-1 ; don! inc off end
+STA Feed_count ;
+JMP Feed_set ; do it
+Feed_reset:
+      
+
+Normal_light:
+; below routines are jumped to by light exec if > reff
+
+JSR Life ; go tweek heelth/hungry counters
+BCS More_light ; if clear then do sensor else bail
+JMP Idle ;done
+More_light:
+; get random/sequential split
+STA IN_DAT ; save for random routine
+      we should never get here so bail back to idle and this will also prevent system lockup when no clk
+
+| LDA | \\#250 | ; never allow roll over |
+| :-- | :-- | :-- |
+| STA | TEMP1 | $; \\quad$ |
+|  |  |  |
+| CLI |  | ;re-enable interrupt |
+| JSR | Kick JRQ | ; wait fuc motor R/C to start working again |
+| LDA | TEMP1 | ; get count |
+| CLC |  | ;clear |
+| SBC | \\#05 | ;is diff > 5 |
+| BCC | No_snd | ;bail out if not |
+|  |  |  |
+| LDA | Stat_3 | ; system |
+| AND | \\#Sound_stat | ; ck for prev done |
+| BNE | No_snd2 | ; wait till quiet |
+|  |  |  |
+| LDA | Stat_3 | ; system |
+| ORA | \\#Sound_stat | ; |
+| STA | Stat_3 | ; set prev dn |
+|  |  |  |
+| LDA | Stat_4 |  |
+| ORA | \\#Do_snd | ; set indicating change > reff level |
+| STA | Stat_4 | ; |
+|  |  |  |
+| SEC |  | ; carry se: indicates no change |
+| RTS |  |  |
+
+No_snd:
+LDA Stat_3 ; get system
+AND \\#Nt_snd_stat ; clear prev dn
+STA Stat_3 ; update
+No_snd2:
+CLC ; carry clear indicates no sound
+RTS ; done
+Normal_sound:
+; below routines are jumped to if sound pulse detected
+; go tweek health/hungry counters
+;if clear then do sensor else bail
+;done
+
+More_sound:
+LDA \\#Sound_split ;get random/sequential split
+STA IN_DAT ; save for random itine
+LDA \\#Seq_sound ; get how many sequential selections
+LDA \\#Ran_sound ; number of random selections
+JSR Ran_seq ; go decide random/sequential
+      
+
+```
+    STA IN_DAT ;save decision
+    LDA #Sound_ID ;which ram location for learned word count
+    (offset)
+    JSR Start_learn ; go record training info
+    LDA IN_DAT ; get back word to speak
+    JSR Decid_age ; do age calculation for table entry
+    LDX TEMPO ; age offset
+    LDA Sound_S1,X ; get lo byte
+    STA Macro_Lo ; save lo byte of Macro table entry
+    INX ;
+    LDA Sound_S1,X ; get hi byte
+    STA Macro_Hi ; save hi byte of Macro table entry
+    JMP Start_macro ; go set group/table pointer for motor & spch
+```
+
+; SENSOR TRAINING
+; Training for each sensor is set up here and the decision if the
+      learned
+; word should be played or not.
+; Temp_ID hold the ram offset for the last sensor of the learned word.
+; Temp_ID2 hold the ram offset for the current sensor of the learned word.
+; IN_DAT holds the current word the sensor chose, and will be loaded with
+; the learned word instead if the sensor count > the random number that was
+; just sampled, ie., force learned word to play.
+; ****
+; If the sensor timer is at 0 when entering here, then the LEARN_TEMP
+; ram location is cleared, else the current learned word is loaded. If
+; the learned word is 0 then all entries are cleared.
+; When entering, check sensor timer and bail if 0 . THen test if this is
+; the back switch and if so then move the current sensor to previous
+sensor
+; ram and increment the counter.
+; If this is not the back switch, then get previous sensor ram counter and
+; decrement it. THen move all current sensor information to previous and
+; return to caller.
+; Because of training difficulties, we now need two back touches to
+; increment training counters. If only one occurs then the normal
+decreme:t
+; happens. This double back touch helps to prevent accidentally training
+; with a new macro by hitting the back sw when it is not the macro you
+; have been working with.
+start_learn:
+STA Temp_ID2 ; sensor ram location of counter (current sensor)
+LDA Temp_ID2 ;get current sensor ID
+CMP \\#EEh ;EF= this is the back switch (special)
+BNE Not_BCK ; jumpif not
+CPX \\#00 ;ck if sensor timer timed out
+BNE Learn_update ; jump if is back switch and not timed out
+Not_BCK:
+LDA Temp_ID ;get previous sensor ram offset
+CMP \\#EEh ;ck if last was back sw
+BEQ Not_learned ; jump if no sensor prev
+LDX Temp_ID ;get prev:ous sensor ram offset
+LDA Tilt_learned, X ; get learned word counter from ram
+CMP Learn_temp ; compare with last word
+BNE Do_lrn2 ; bail out if different
+LDA Tilt_lrn_cnt, X ;prev sensor counter +offset to current
+sensor
+CLC
+SBC \\#Learn_chg ; dec learned word counter since not back sw
+STA Tilt_lrn_cnt, X ;update
+BCS Do_lrn2 ; jump if > \\#Learn_chg
+BPL Do_lrn2 ; jump if not negative (rolled over)
+LDA \\#00
+STA Tilt_lrn_cnt, X ; set to zero, no roll over
+      ; on 1st cycle of new learn, we set counter $1 / 2$ way ..... (chicken)
+
+;
+; When IRQ gets turned off, and then restarted, we wait two complete cycle to insure the motor R/C pulses are back in sync.
+Kick IRQ:
+LDA Stat_3 ;get system
+AND \\#Nt IRQdn ;clear IRQ occured status
+STA Stat_3 ;update system
+LDX \\#03 ; loop counter
+Kick2:
+LDA Stat_3 ;system
+AND \\#IRQ_dn ;ck if IRQ occured
+BEQ Kick2 ;wait till IRQ happens
+LDA Stat_3 ;get system
+AND \\#Nt IRQdn ;clear IRQ occured status
+STA Stat_3 ;update system
+DEX Kick2 ; 1000 til done
+RTS ;is done
+; EEPROM READ/WRITE
+; Read \\& write subroutines
+;
+      Enter with 'TEMPO' holding adrs of 0-63. Areg holds lo byte and Xreg holds hi byte. If carry is clear then it was succesfull, if carry is set the write failed.
+
+MODIFIED eeprom, load lo byte in temp1 and hi byte in temp2 and call EEWRIT2.
+
+| LDA | $\\# 00$ | ;use DAC output to put TI in reset |
+| :-- | :-- | :-- |
+| STA | DAC1 | ; |
+| SEI |  | ;turn IRQ off |
+
+LDA $\\quad \\# 00 \\quad$;EEPROM adrs to write data to
+STA Sgroup ; save adrs
+LDA \\#13 ; number of ram adrs to transfer (x/2)
+STA Which_delay ; save
+LDA $\\quad \\# 00 \\quad$; Xreg offset
+STA Which_motor ; save
+Need one read cycle before a write to wake up EEPROM
+LDX Which_motor ; eeprom address to read from
+JSR EEREAD ; get data (wakes up eeprom)
+
+Write_loop:
+
+| LDA | Sgroup | ; get next EEPROM adrs |
+| :-- | :-- | :-- |
+| STA | TEMPO | ; buffer |
+| LDX | Which_motor | ; ram source |
+| LDA | Age,X | ; lo byte (data byte \\#1) |
+| STA | TEMP1 | ; save data bytes |
+| INC | Which_motor | ; |
+| INX |  |  |
+| LDA | Age,X | ; |
+| STA | TEMP2 | ; hi byte (data byte \\#2) |
+| JSR | EEWRIT2 | ; send em |
+| BCS | EEfail | ; jump if bad |
+
+INC Sgroup ; 0-63 EEPROM adrs next
+INC Sgroup ; 0-63 EEPROM adrs next (eeprom writes 2 bytes)
+
+INC Which_motor ; next adrs
+DEC Which_delay ; how many to send
+BNE Write_loop ; send some more
+RTS ; done
+READ EEPROM HERE AND SETUP RAM
+S_EEPROM_READ:
+Xreg is the adrs 0-63, system returns lo byte in Areg \\& hi byte in Xreg.
+on call: $X=$ EEPROM data address (0-63)
+on return: ACC = EEPROM data (low byte) (also in TEMPO)
+$X=$ EEPROM data (high byte) (also in TEMP1)
       # $* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-      STA Port_A image ;save image RTS\n;\n;\n;\nRead data 16-bit data word from EEPROM at specified address\non call: $X=$ EEPROM data address (0-63)\non return: ACC = EEPROM data (low byte)\n$X=$ EEPROM data (high byte)\nstack usage: 2\nRAM usage: TEMPO\n;\n;\nEEREAD:\nSTX TEMPO ;store data addr\nJSR EEENA ; turn on CS\nSEC ;send start bit\nJSR OUTBIT ;\nSEC\nJSR OUTBIT ;\nCLC\nJSR OUTBIT ;\nLDX \\#6\nROL TEMPO\nROL TEMPO\n; :init addr bit count\n; align MS addr bit in bit 7\n; : shift address bit into carry\n;send it to EEPROM\n; bump bit counter\n; and repeat until done\nLDX \\#16\n; init data bit count\nLDA \\#0\nSTA TEMPO\n; init data bit accumulators\nSTA TEMP1\n;\nEERDO4:\nJSR TOOCLK ; toggle clock for next bit\nLDA \\#020H ; test data bit (B.5) from EEPROM\nBIT Port_B\nBNE EERDO8\n;\nCLC\nJMP EERD10\n;\nEERDO8:\nSEC\n;\nEERD10:\nROL TEMPO\nROL TEMP1\n; :create data bit into 16-bit\n; accumulator\n; bump bit counter
-      ```\n    BNE EERDO4 ; ; ; and repeat until done\nJSR EEDIS ; turn off CS and return\nLDA TEMPO ; ret w/data byte in ACC\nLDX TEMP1 ; ; and X regs\nRTS\n;\n; ****************************************************************\n; Issue ERASE/WRITE ENABLE or DISABLE instruction to EEPROM\n; (instruction = 1001100000)\n; on call: --\n; on return: --\n; stack usage: 2\nRAM usage: TEMP3\n;\n***\nEEWEN:\n    LDA #0FFH ; ;set up enable inst\n    JMP EEWEO2\nEEWDS:\n    LDA #000H ; ; set up disable inst\nEEWEO2:\n    STA TEMP3 ; save instruction\n    JSR EEENA ; turn on CS\n    SEC ; send start bit\n    JSR OUTBIT ; ;\n    CLC ; send ENA/DIS opcode (00)\n    JSR OUTBIT ; ;\n    CLC ; ;\n    JSR OUTBIT ; ;\n    LDX #6 ; init instr bit count\nEEWEO4:\n    ROL TEMP3 ; shift instruction bit into carry\n    JSR OUTBIT ; ;send it to EEPROM\n    DEX ; bump bit counter\n    BNE EEWEO4 ; ; ; and repeat until done\nRTS\n;\n;\n; Write data byte to EEPROM at specified address\n; on call: TEMPO = EEPROM data address (0-63)\n    _ _ ACC = data to be written (low byte)\n        X = data to be written (high byte)\n    on return: C = 0 on successful write cycle\n        C = 1 on write cycle time out\n    stack usage: 4\n```
-      RAM usage: TEMPO, TEMP1, TEMP2\n
-      RTS\n;\n\n;\n; Subroutine creates sensor table entry for the selected age.\n; One table for each age.\n; Enter with Acc holding the 1-16 table selection.\n; Exit with Acc \\& Temp0 holding the offset 0-FF of the 1-4 age entry.\n; Special condition where we have only two tables instead of 4\n; (where each table is called based on age), if the \"half_age\" bit is\n; set then ages $1 \\& 2$ call table 1 and ages $3 \\& 4$ call table 7.\nDecid_age:\nSTA TEMPO ; save 0-0f selection\nLDA Stat_1 ; system\nAND \\#Half_age ; test if this is a special 2 table select\nBEQ Decid_normal ; jump if not\nLDA Stat_1\nAND \\#Nt_halff_age ; clear req\nSTA Stat_1 ; update system\nLDA Age ;\nAND \\#03h ; get rid of bit 7 (9th counter bit )\nCLC\nSBC \\#01 ; actual age is $0-3$, test if $<2$\nBCC Dec_age1 ; choose age 1 ( actually 0 here)\nJMP Spcl_age2 ; choose age 2 ( actually 1 here)\nDecid_normal:\n; ; ; mod TestR3a.... 25\\% of time chore age1 to add more furbish after\n; ; ; he is age 4.\nJSR Random ; get a number\nCLC\nSBC \\#Random_age ; below this level selects age 1\nBCS Nospcl_age ; jump if >\nLDA \\#00 ; set age 1\nJMP Do_age ; go do it\n; ; ; end mod\nNospcl_age:\nLDA Age ; get current\nAND \\#03h ; get rid of bit 7 (9th counter bit )\nCMP \\#03 ; is it age 4\nBNE Dec_age3 ; jump if not\nLDA \\#96 ; point to 4th field\nJMP Do_age ; finish load from table
-      Life:\n; Each FEED trigger increments the HUNGRY counter by (EQU = FOOD).\n;Hungry >80 (Need_food) + Sick >CO (Really_sick) = normal sensor\n;Hungry >80 (Need_food) + Sick <CO (Really_sick) = random SICK/SENSOR\n;Hungry <80 (Need_food) + Sick >CO (Really_sick) = random HUNGRY/SENSOR\n;Hungry <80 (Need_food) + Sick <CO (Really_sick) = random\nHUNGRY/SICK/SENSOR\n;Hungry <60 (Sick_reff) + Sick <CO (Really_sick) = random HUNGRY/SICK\n;Hungry $>60$ then each sensor motion increments Sick\n;Hungry $<60$ then each sensor motion decrements Sick\n; When the system does a cold boot, we set HUNGRY \\& SICK to FFh.....\n; When returning from here, carry is set if sensor should execute\n; normal routine, and cleared if sensor should do nothing.\n;REFF only\n;Hingry_counter\n; Sick_counter\n;Food EQU 20h ;amount to in:rease 'Hungry' for each feeding\n;Need_food EQU 80h ; below this starts complaining about hunger\n;Sick_reff EQU 60h ; below this starts complaining about sickness\n; Real1y_sick EQU C0h ; below this only complains about sickness\n;Hungry_dec EQU 01 ;subtract X amount for each sensor trigger\n;Sick_dec EQU 01 ;subtract X amount for each sensor trigger\n;Max_sick EQU see EQU\n\nLDA Hungry_counter ; current\n;mod F-re1s2 ;\n; CLC\nSEC\n; end mod\nSEC \\#Hungry_dec ;-X for each trigger\nBCS frst_life ; jump if not neg\nLDA \\#00 ; reset\nfret_life:\nSTA Hungry_counter ; get count\nCLC\nSEC \\#Sick_reff ;ck if getting sick\nBCS Sick_inc ; jump if not sick\nLDA Sick_counter ; current\n;mod F-re1s2 ;\n; CLC\nSEC\n; end mod\n;mod testr3a\n; SBC \\#Sick_dec ;-X for each trigger\nBCS frst_sick ; jump if not neg
-      JER Ran_seq 0 decide random/sequential BCS Sick_ra: ;Ran: :ode when carry SET\n\nLDA Sensor_timer ;ck if timed out since last action BEQ Sick_reset ;yep\nINC Sickr_count ;if not then next table entry\nLDA Sickr_count ;get\nCLC\nSBC \\#Seq_sick-1 ;ck if > assignment\nBCC Sick_side ; jump if <\nLDA \\#Seq_sick-1 ; dont inc off end\nSTA Sickr_count ;\nJMP Sick_side ; do it\nSick_reset:\nLDA \\#00 ;reset to 1st entry of sequenrial\nSTA Sickr_count ;\nSick_side:\nLDA \\#Global_time ;get timer reset value\nSTA Sensor_timer ;reset it\nLDA Sickr_count ;get current pointer to tables\nSick_ran:\nJSR Decid_age ; do age calculation for table entry\nLDX TEMPO ; age offset\nLDA Sick_S1,X ;get lo byte\nSTA Macro_lo ;save lo byte of Macro table entry\nIMX\nLDA Sick_S1,X ;get hi byte\nSTA Macro_Hi ; arrive hi byte of Macro table entry\nJSR Get_macro ; go start motor/speech\nJSR :olrdy ;Do / get status for speech and motor\nCLC ; tells sensor to do nothing\nRTS\n;\n;\n;\n;\nGoToSleep:\n; save light sensor fail or sleep command in 'Seed_2' into EEPROM\n\n; EEPROM WRITE
-      ; Enter with 'TEMPO' holding adrs of 0-63. Areg holds lo byte and ; Xreg holds hi byte. If carry is clear then it was succesfull, if ; carry is set the write failed.\n; MODIFIED eaprom, load lo byte in temp1 and + byte in temp2\n; and call EEWRIT2.\n\n| LDA | $\\# 00$ | ; use DAC output to put TI in reset |\n| :-- | :-- | :-- |\n| STA | DAC1 |  |\n| SEI |  | ; turn IRQ off |\n\nLDA \\#00 ;EEPROM adrs to write data o\nSTA Sgroup ; save adrs\nLDA \\#13 ; number of ram adrs to transfi (x/2)\nSTA Which_delay ; save\nLDA \\#00 ; Xreg offset\nSTA Which_motor ; save\n; Need one read cycle before a write to wake up EEPROM\nLDX Which_motor ; eeprom address to read from\nJSR EEREAD ; get data (wakes up eaprom)\n\nIWrite_loop:\n\n| LDA | Sgroup | ; get next EEPROM adrs |\n| :-- | :-- | :-- |\n| STA | TEMPO | ; buffer |\n| LDX | Which_motor | ; ram source |\n| LDA | Age,X | ; lo byte (data byte \\#1) |\n| STA | TEMP1 | ; save data bytes |\n| INC | Which_motor | ; |\n| INX |  |  |\n| LDA | Age, X | ; |\n| STA | TEMP2 | ; hi byte (data byte \\#2) |\n| JSR | EEWRIT2 | ; send em |\n| BCS | EEfall | ; jump if bad |\n| INC | Sgroup | ; 0-63 EEPROM adrs next |\n| INC | Sgroup | ; 0-63 EEPROM adrs next (eeprom writes 2 |\n\nbytes)\nINC Which_motor ; next adrs\nDEC Which_delay ; how many to send\nBNE IWrite_loop ; send some more\n;\nGoToSleep_2:\n\nInclude\nSleep.asm ;\n; EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n; \"Interrupt Sulroutines\n; EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
-      ; *********** CAUTION ************\n; Any ram location written outside of IRQ can only be read in the IRQ,\n; likewise if written in the IRQ, then can only be read outside the IRQ.\n; THIS WILL PREVENT DATA CORRRUPTION.\n\nNMI :\nRTI\n;Not used\n\nIRQ:\nPHA ;push acc on stack\nPHP ;push cpu status on stack\n; ****** timer $A=166$ uSEC ********\nCKTimerA:\n; LDA Interrupts ;get who did it\n; AND $\\# 20 \\mathrm{H} \\quad$; test for timerA\n; BNE Do_ta ; jump if is\n; JMP Ck_timerB ;\n;Do_ta:\n;***** timer $B=700$ uSEC ******\nCK_timerB:\nLDA Interrupts ;get status again\nAND $\\# 10 \\mathrm{H} \\quad$; test for timer B\nBNE Do_timeB ; jump if request true\nJMP Intt_false ; bypass all if not\n; also changed TimerB relacd value from \\#10h to 00 in EQU\nDo_timeB:\n; RE-CALIBRATE SWITCH for motor position\n; This counter must meet a threshold to decide if the\n; calposition ratch is really engaged.\nLDA Purt_C ;get I/O\nAND \\#Motor_cal ; 10 when limit hit\nBNE No_cal_sw ; no position switch found\nINC Cal_switch_cnt ; inc each time found low\nBNE Cal_noroll ; jump if dldnt roll over (stoppeu on sw tch)\nLDA \\#31 ; max count\nSTA Cal_switch_cnt ;\nCal_noroll:\nLDA Cal_switch_cnt ;\nCLC\nSBC \\#30 ; ck if enough counts\nBCC No_lim_etp ; jump if not enough\nLDA \\#Cal_pos_fwd ; force value\nSTA Pot_timeL2 ; reset both
-      JMP No Jim stp ; done\nNo_cal_sw:\nLDA \\#00 ; clear count if hi\nSTA Cal switch cnt ; update\n\nNo_lim_stp:\nLDA Wait time ; 4 times thru loop $=2.9 \\mathrm{mSec}$\nBNE WTa ; $>0$\nLDA \\#04 ; counter reset\nSTA Wait_time ; reload\nJMP Timer norm ;\nWTa: DEC Wait_time ;\nJMP TimerB_dn ; bypass timers until done\nTimer norm:\n;******** Below routines run at 2.9 mSec\nLDA Mot speed cnt ; ck for active\nBEQ No spd m ; jump if not\nDEC Mot speed cnt ; -1\nNo spd_m:\nLDA motorstoped ; motor drift timer\nBEQ No_mstop ; jump if done\nDEC motorstoped ; -1\nNo_mstop:\nLDA Motor_led_timer ; Motor_led timer * 742 mSec\nBEQ TimeB1 ; jump if done\nDEC Motor_led_timer ; -1\nTimeB1:\nLJA Cycle_timer ; 2.9mSec timer * cycle reload\nEaQ TimeB2 ; jump if done\nDEC Cycle_timer ; -1\nTimeB2:\n;m LDA Motor_pulse ; 2.9mSec timer * Motor_pulse\nm BEQ TimeB3 ; jump if done\n;m DEC Motor_ pulse ; -1\nTimeB3:\nDEC Mili sec ; -1 \\& allow rollover\nBNE TimerB_dn ; wait for rollover ( $2.9 \\mathrm{mS} * 256=742 \\mathrm{mSec}$ )\nINC Mili sec flag ; tell task rtn to decrement timers\nTimerB dn:\n;******** We could test all interrupts here as needed\n; Ck2Khz:\n; Ck500hz:\n; Ck60hz:\n;******** Check motor position - IR slot in wheel sensor
-      This version does two reads to eliminate noise and sets a done flag to prevent multiple counts. It also reads twice when no slot is present to clear the done flag.\n\n| LDA | Port_C |  | ;get I/O |\n| :--: | :--: | :--: | :--: |\n| AND | \\#Pos_sen | ; ck position sensor |  |\n| BNE | Clr_pos | ; jump if no : | ,ger |\n| LDA | Port_C |  | ; get I/O |\n| AND | \\#Pos_sen | ; READ $2 x$ to prevent noise trigger |  |\n| BNE | Clr_pos | ; jump if no IR trigger |  |\n| LDA | Slot_vote | ; get prev cycle |  |\n| BEQ | Pc_done | ; bail if prev counted |  |\n| LDA | \\#00 | ; |  |\n| STA | Slot_vote | ; set ram to 0. (faster than setting a bit) |  |\n| JMP | Force_int | ; go count slot |  |\n\nClr_pos:\nLDA Port_C ;get I/O\nAND \\#Pos_sen ; READ $2 x$ to prevent noise trigger\nBEQ Pc_done ; not 2 equal reads so bypass this cycle\nSTA Slot_vote ; set ram to 1. (faster than setting a bit)\nJMP Pc_done ;\n\n# ExtportC: \n\n| JMP | Intt_false ; this should be turned off |\n| :--: | :--: |\n| LDA | Interrupts ; get status again |\n| AND | \\#01H ; test for port C bit 1 rising edge |\n| BEQ | Pc_done ; jump if not |\n\nForce_int:\nLDA Port_D_Image ; system\nAND \\#Motor_led ; ck if position I.R. led is on\nBEQ Pc_done ; jump if not off\nLDA Stat_2 ; get system\nAND \\#Motor_fwd ; if set then FWD else REV\nBEQ Cnt_rev ; jump if clr\nINC Pot_timeL2 ; sensor counter\nCLC\nLDA Pot_timeL2 ; current\nSBC \\#207 ; ck for > 207\nBCC Updt_cnt ; jump if not\nLDA \\#00 ; roll over\nSTA Pot_timeL2 ;\nJMP Updt_cnt ;\nCnt_rev:\nDEC Pot_timeL2 ; -1\nCLC\nLDA \\#208 ; max count\nPot_timeL2 ; ck for negative ( >207)\nS Updt_cnt ; jump if not\nCnt_c\nLDA \\#207 ; when neg roll over to max count\nSTA Pot_timeL2 ;\nUpdt_cnt:\nINC Drift_counter ; to be used for braking pulse
-      JMP Intt motor end\nM_drft_R2:\nDEC Drift_rev ;-1\nLDA Port_D_Image ;get system\nORA \\#Motor_off ;turn both motors off\nJMP Intt motor end\nIntt_motor:\nLDA Stat_3\nAND \\#C0h ; get motor command bits\nSTA Intt_Temp ;sav motor direction\n:___ Purby1? .. move motor pulse width to interrupt routine\nLDA Motor_pulse1 ; get on time\nBEQ Intmotor1 ; jump if 0\nDEC Motor_pulse1 ;-1\nJMP Intmotor_dn ;exit (dent change Intt_temp if on)\nIntmotor1:\nLDA Motor_pulse2 ; get off time\nBEQ Intmotor2 ; got reset timer\nDEC Motor_pulse2 ; -1\nLDA \\#C0h ; shut motor off\nSTA Intt_Temp ;\nJMP Intmotor_dn ;exit\nIntmotor2:\nLDA Mon_len ; reset on time\nSTA Motor_pulse1 ;\nLDA Moff_len ;reset off time\nSTA Motor_pulse2 ;\nIntmotor_dn\n:---- end motor pulse width\nLDA Port_D_Image ; get system\nAND \\#3Fh ; clear motor direction bits\nCLC\nADC Intt_Temp ; put in motor commands\nIntt_motor_end:\nSTA Port_D_Image ; update system\n; at Tracker\nEOR \\#\\%11000000 ; ; Tracker add invert motor drivers\n; end Tracker\nSTA Port_D ; output\nIntt_done: ;gc ral curn\nLDA Stat_3 ; systs\nORA \\#IRQ_dn ; flag :tem IRQ occured\nSTA Stat_3 ; upiat\nIntt_false:\nLDA \\#00H ; clear ail intts first\nSTA Interrupts ;\nLDA \\#Intt_dflt ; get default for interrupt reg\nSTA Interrupts ; set reg \\& clear intt flag\nPLP ; recover CPU
-      PLA\n;recover ACC\nRTI\n;reset interrupt\n; communication protocal with the TI is:\nFF is a no action command. (used as end of speech command)\nFE sets the command data mode and the TI expects two additional data bytes to complete the string. ( 3 TOTAL)\nALL OTHERS (0-FD) ARE CONSIDERED START OF A SPEECH WOOD !\nCommand data structure is BYTE 1 + BYTE 2 + BYTE 3\n; BYTE 1 is always FE\n; Command 1\n; BYTE $2=$ FE is pitch table control;\nBYTE $3=$ bit 7 set = subtract value from current course value\n; clr = add value to current course value\nbit 6 set $=$ select music pitch table\n; clr = select normal speech pitch table\nbit $0-5$ value to change course value (no change $=0$ )\n; Command 2\n; BYTE $2=$ FD is Infrared transmit cmnd\n; BYTE $3=$ Is the I.R. code to send ( 0 - 0Fh only )\n; Command 3\n; BYTE $2=$ FC is the speech speed control\nBYTE $3=$ a value of $0-255$ where 2 Eh is normal speed.\n; Enter subroutine with TEMP1 = command byte (1st)\n; TEMP2 = data byte (2nd)\nXmit_TI:\nLDA \\#FEh ; tells TI command da:a to follow\nJSR Spch_more ; out data\nLDA TEMPi ; command code\nJSR Spch_more ; out data\nLDA TEMP2 ; data to send\nJSR Spch_more ; out data\nRTS ; done\n; There is an entry for each bank of speech and only the words in that ; bank are in the list. THIS is a subroutine call.\n; The first time thru, we call SAY_x and as long as WORD_ACTIV or SAY_ACTIV\n; is set we call DO_NEXTSENT until saysent is done.\n; There are 4 groups of 128 pointers in each group. This gives 512
-      saysents.\n; 1. Enter with 'Which_word' holding 0-12\" and 'Sgroup' for the 1 of 4 tables\n; which points to two byte adrs of a saysent. These two bytes are\n; lcoded into Saysent_lo \\& Saysent_hi.\n; 2. Dat s shuffled to the TI according to the BUSY/REQ line\n; Currently we have 167 speech words or sounds in ROM. Words 1 - 12\n; are in bank 0 and 13 - 122 are in bank 1 \\& 123 - 167 in bank 2.\nSay_0:\n
-      Xney_say:\n\n| LDX | \\#00 | ;no offsett |\n| :-- | :-- | :-- |\n| LDA | (Saysent_lo,X) | ;get data @ 16 bit adrs |\n\nCLC\nADC Rvoice ;adjut to voice selected on power up\nSTA TEMP2 ;save new speech pitch\nLDA \\#FEh ;command for TI to except pitch data\nSTA TEMP1\n; The math routine converts the value to 00 for 80 and\n; if 0 then subtracts from 80 to get the minus ver: a of 00\n; ie, if number is 70 then TI gets sent $10(-1$\nLDA TEMP2 ;get voice with offsett\nBRI No_voice_chg ;if $>80$ then no char\nLDA \\#80h ;remove offsett if <80\nCLC\nSBC TEMP2 ; kill offset\nSTA TEMP2 ;update\nNo_voice_chg:\nJSR Xmit_TI ;send it to TI\nDo_nextsent:\nFrst_say:\nINC Saysent_lo ; next saysent pointer\nBNE Scnd_say ; jump if no roll over\nINC Saysent_hi ; +1\nScnd_say:\nLDX \\#00 ;no offsett\nLDA (Saysent_lo,X) ;get data @ 16 bit adrs\nCM? \\#FFH ;check for end\nBEQ Say_end ; done\nLDA (Saysent_lo,X) ;get data @ 16 bit adrs\nSTA Which_word ;\nWtest:\nCLC\nSBC \\#12 ;ck if in bank 1\nBCS Get_group1 ; jump if is\nGet_group0:\nLDA \\#00 ; set bank\nSTA Bank_ptr ; Bank number\nCLC ; clear carry\nLDA Which_word ;get word\nROL A ;2's offsett\nTAX ;load offset to Xreg\nLDA Word_group0,X ;get lo pointer\nSTA Word_lo ;save\nINX ;X+1\nLDA Word_group0,X ;get hi pointer\nSTA Word_hi ;save\nJMP Word_fini ; go do it\nGet_group1:\nLDA Which_word ; selection\nCLC\nSBC \\#122 ;ck if in bank 2\nBCS Get_group2 ; jump if is
-      | WAKE2 |  |\n| :--: | :--: |\n| $1$ | adds deep sleep mide. If 'Deep_sleep'=11h then tilt will not |\n| 1 | wake us up. only invert. |\n\nPower up reset decision for three types of startup:\n1. Powerup with feed switch zeros ram \\& EEPROM, \\& calls 10-200-10 macro.\n2. Power up from battery change wont clear EEPROM but calls 10-200-10 macro.\n3. Wake up from Port_D clears ram and jumps directly to startup. No macro.\n\n| SEI |  | :interrupts off |\n| :--: | :--: | :--: |\n| LDX | \\#COH | :startup setting |\n| STX | Interrupts | :disable Watch Dog |\n| LDX | \\#FFH | :Reset stack pointer address \\$0FFH |\n| TXS |  |  |\n| LDX | \\#0 |  |\n| LDA | Wake_up | : Get the information from h: rdware to check |\n| STA | TEMP5 | :whether reset is from power up or wakeup |\n| STX | Wake_up | :disable wakeup immediately, this action can :stop the reset occupied by another changed on :portD, so once the program can execute to :this line then chip will not be reset due to :port changed again |\n| AND | \\#\\#00000001 | :mask the rest of bit and just check the port |\n| BEC | Power_battery | :jump to power up initial if not port D |\n\nNeed to debounce tilt and invert since they are very unstable\n\n| Ck_wakeup: |  |  |\n| :--: | :--: | :--: |\n| LDA | \\#00 | :clear |\n| STA | TEMP1 | : |\n| STA | TEMP2 | : |\n| LDX | \\#FFh | :loop counter |\n| Dbnc_lp: |  |  |\n| LDA | Port_D |  |\n| AND | \\#01 | :ck tilt sw |\n| BEQ | Dbmc_lp2 | : jump if not tilt |\n| INC | TEMP1 | : switch counter |\n| Dbnc_lp2: |  |  |\n| LDA | Port_D |  |\n| AND | \\#02 | :ck invert sw |\n| BEQ | Dbmc_lp3 | : jump if not invert |\n| INC | TEMP2 | : switch counter |\n| Dbnc_lp3: |  |  |\n| DEX |  | : -1 loop count |\n| BNE | Dbnc_lp | : loop |\n| LDA | Deep_sleep | : decide if normal or deep sleep |\n| CM | \\#11h |  |\n| BEQ | Dbmc_lp4 | : if deep sleep then only test invert |\n| LDA | TEMP1 | : get tilt count |\n| BEQ | Dbnc_lp4 | : jump if 0 |\n| CLC |  |  |\n| SBC | \\#. | : min count to insure not noise |\n| BCS | Power_Port_D | : jump if > min |
-      Danc_lp4:\n\n\nI Verify that Port_D is no longer changing before going to sleep. If not, the CPU will lock up without setting the low power mode. Before we exit here when count is less than minimum count, we must be sure Port_D is not changing. If we jump to sleep routine when it is not stable, the sleep routine will wait forever to be stable which causes Furby appear to be locked up.\n\n| LDA | \\#00 |  |\n| :-- | :-- | :-- |\n| STA | TEMP1 |  |\n| LDA | Port_D | :counter |\n| Test_sleep: |  |  |\n| CHP | Port_D | :check if changed |\n| BNE | Ck_wakeup | :start over if did |\n| DEC | TEMP1 | $:-1$ counter |\n| BNE | Test_sleep | :loop |\n| TMP | GoToSleep_2 | :otherwise, just goto sleep again |\n\nPower_Port_D:\nLDA \\#11h\n:signal port D wakeup\nSTA Warm_cold\nJMP L_PowerOnInitial\nPower_battery:\nLDA \\#05h\n:signal battery wakeup\nSTA Warm_cold\nL_PowerOnInitial:\nLDA \\#00\n:clear deep sleep command\nSTA Deep_sleep
-      ```\n; MCDS :\n; LIGHT3.asm\n; Add test to light counter so that if the oscillator\n; fails, the system will ignore light sensor and keep running.\n; Light4\n; When goes to complete dark and hits the 'Dark_sleep' level\n; and stays there until the reff level updates, at that point\n; we send Furby to sleep.\n; Light5 (used in F-RELS2 )\n; Change detection of light threshold to preven: false or continuens trigger.\nBright EQU 15 ;light sensor trigger > reff level (Hon)\nDim EQU 15 ;Light sensor trigger < reff level (Hon)\nShift_reff EQU 10 ;max count to set or clear prev done flag\nDark_sleep EQU BOh ; when timer A hi =0f and timer A low\n; is = to this EQU then send him to sleep\n```\n\n; The CDS light sensor generates a square wave of 500 hz to 24 kHz based on\n; light brightness. We can loop on the sense line and count time for the\n; 10 period to determine if light has changed and compare it to previous\n; samples. This also determines going lighter or darker. We also set a timer\n; so that if someone holds their hand over the sensor and we announce it.\n; if the change isnt stable for 10 second, we ignore the change back to the\n; previous state. If it does exis for > 10 seconds, then it becomes the\n; new sample to compare against on the next cycle.\n; In order to announce light change, the system must have a consistent\n; count > 'Shift_ieff'.\n; If a previous reff has been set then the 'Up_light' bit is set to\n; look for counts greater than the reff. The system passes through the\n; light routine 'Shift_reff' times. If it is consistently greater than\n; the reff level, we get a speech trigger. If any single pass is less\n; than the reff, the counter is set back to zero. This scenario also\n; is obeyed when the trigger goes away, ie remove your hand, and the system\n; counts down to zero. ('Up_light' bit is cleared) If during this time any\n; trigger greater than reff occurs, the count is set back to max.\n; This should prevent false triggers.\n\nGet_light: ; alt entiy for diagnostics\n; This uses timer A to get a count from the 10 period of the clk\n\n| SEI |  | : interrupts off |\n| :-- | :-- | :-- |\n| LDA | \\#0C0H | ;disable timer, clock, ext ints, |\n| STA | Interrupts | ; \\& watchdog; select IRQ int. |\n| LDA | \\#000H | ; set timer A for timer mode |\n| STA | TMA_CON | ; |
-      # Light5.asm \n\n| LDA | \\#000H | ;re-start timer A |\n| :--: | :--: | :--: |\n| STA | TMA_LSB | ; |\n| LDA | \\#000H | ; now CPUCLK; was \\#010H = CPUCLK/4 (Hon) |\n| STA | TMA_MSB | ; |\n| Ck_1ght2: |  | ; test for dead light osc |\n| LDA | TMA_MSB | ; get timer |\n| AND | \\#0Fh | ; ck for > 0E |\n| CMP | \\#0Fh | ; ck for > OE |\n| BNE | Ck_1t2a | ; jump if not |\n| LDA | TMA_LSB | ; get 10 byte |\n| CLC |  |  |\n| SBC | \\#E0h | ; ck for > ;msb+1sb =0FE0) |\n| BCC | Ck_1t2a | ; jump if not |\n| JMP | L1ight_fail | ; bail out if > |\n| Ck_1t2a: |  |  |\n| LDA | Port_D | ; get I/O |\n| AND | \\#Light_in | ; ck light clk is hi |\n| BEQ | Ck_1ght2 | ; wait for it to go hi |\n| LDA | \\#000H | ;re-start timer A |\n| STA | TMA_LSB | ; |\n| LDA | \\#C0H | ; now CPUCLK; was \\#010H = CPUCLK/4 (Hon) |\n| STA | A_MSB | ; |\n| Ck_1ght3: |  |  |\n| LDA | TMA_MSB | ; test for dead light osc |\n| AN | \\#0Fh | ; get timer |\n| Chy | \\#0Fh | ; ck for > OE |\n| BNE | Ck_1t3a | ; jump if not |\n| LDA | TMA_LSB | ; get 10 byte |\n| CLC |  |  |\n| SBC | \\#E0h | ; ck for > (msb+1sb =0FE0) |\n| BCS | Light_fail | ; bail out if > |\n| Ck_1t3a: |  |  |\n| LDA | Port_D | ; get I/O |\n| AND | \\#Light_in | ; ck light clk is 10 |\n| BNE | Ck_1ght3 | ; wait for it to go 10 to insure the clk edge |\n| Ck_1ght4: |  |  |\n| LDA | \\#000H | ;re-start timer A |\n| CTA | TMA_LSB | ; |\n| LDA | \\#000H | ; now CPUCLK; was \\#010H = CPUCLK/4 (Hon) |\n| STA | TMA_MSB | ; |\n| Ck_1ght4a: |  |  |\n| LDA | Port_D | ; get I/O |\n| AND | \\#Light_in | ; ck if still 10 |\n| BEQ | Ck_1ght4a | ; loop till hi |\n| ; Timer A holds count for 10 period of clk |  |  |\n| Light4cmp: |  |  |\n| LDA | TMA_MSB | ; get timer high byte |\n| AND | \\#00FH | ; mask out high nybble |\n| STA | TEMF2 | ; and save it |\n| LDA | TMA_LSB | ; get timer low byte |\n| STA | TEMF1 | ; and save it |\n| LDA | TMA_MSB | ; get timer A high byte anain |
-      # Light5.asm \n\n| LDA | Stat_1 | : system |\n| :--: | :--: | :--: |\n| AND | \\#Up_1ight | :ck if incrmnt mode |\n| BNE | Rat_whltup | : jump if incrmnt mode |\n| LDA | \\#Shift_reff | : set to max |\n| STA | Light_shift | : |\n| JMP | No_lt_todo |  |\n| Rat_whltup: |  |  |\n| INC | Light_shift | $: 11$ |\n| LDA | Light_shift | :get counter |\n| CLC |  |  |\n| SBC | \\#Shift_reff | :ck if > max reff count |\n| BCC | No_lt_todo | :jump if < max count |\n| LDA | \\#Shift_reff | :reset to max |\n| STA | Light_shift | : |\n| LDA | Stat_0 | : system |\n| AND | \\#Lt_prev_dn | :check if previously done |\n| BNE | New_ltreff | : jump if was |\n| LDA | Stat_0 | : system |\n| ORA | \\#Lt_prev_dn | : set previously done |\n| STA | Stat_0 | :update |\n| LDA | Stat_1 | : system |\n| : AND | \\#EPh | : set sytem to shift decrmnt mode |\n| STA | Stat_1 | : uj fate |\n| LDA | \\#Light_reload | :reset for next trigger |\n| STA | Light_timer | : set it |\n| JMP | Do_ltchg | :go announce it |\n| New_ltreff: |  |  |\n| LDA | Light_timer | : get current |\n| BNE | No_lt_todo | :nothing to do |\n| LDA | TEMP1 | : get new count |\n| STA | Light_reff | :update system |\n| -DA | Stat_1 | : system |\n| AND | \\#EPh | : set sytem to shift decrmnt mode |\n| STA | Stat_1 | :update |\n| LDA | TEMP1 | : get current value |\n| CLC |  |  |\n| SBC | \\#Dark_sleep | :ck if > sleep level |\n| BCS | Ck_drk | : jump if > |\n| LDA | Stat_0 | : system |\n| AND | \\#7Ph | : kill prev done |\n| STA | Stat_0 | :update |\n| JMP | Kill_ltrf | : |\n| Ck_drk: |  |  |\n| LDA | Stat_0 | : system |\n| AND | \\#D rk_sleep_ prev | : ck if this was already done |\n| BNE | Kill_ltrf | :jump if was |\n| LDA | Stat_0 | : system |\n| ORA | \\#REQ_dark_sleep | : set it |\n| ORA | \\#Dark_sleep_ prev | : set also |\n| STA | Stat_0 | :update |\n\nKill_ltrf:
-      Light5.asm\n\n|  | LDA | Stat_0 | ; system |\n| :--: | :--: | :--: | :--: |\n| 1 | AND | \\#Lt_prev_dn | ; check if previously done |\n| 1 | BEQ | No_lt_‘ado | ; jump if clear |\n|  | LDA | Light_shift | ; get shift counter |\n|  | BEQ | Kill_shift | ; jump if went zero last time |\n|  | LDA | Stat_1 | ; system |\n|  | AND | \\#Up_light | ;ck if incrmnt mode |\n|  | BEQ | Rot_shttdn | ; jump if decrmnt mode |\n|  | LDA | \\#00 | ; set to min |\n|  | STA | Light_shift | ; |\n|  | JMP | No_lt_todo | ; |\n| Rst_shttdn: |  |  |  |\n|  | DEC | Light_shift | ;-1 |\n|  | JMP | No_lt_todo | ; done |\n| Kill_shift: |  |  |  |\n|  | LDA | Stat_0 | ; system |\n|  | AND | \\#FDH | ;clears Lt_prev_dn |\n|  | STA | Stat_0 | ;update |\n|  | LDA | Stat_1 | ; system |\n|  | ORA | \\#Up_light | ; prepare to incrmnt 'Light_shift' |\n|  | STA | Stat_1 | ;update |\n\nNo_lt_todo:\nSEC\nRTS\n; carry set indicates no light change\n; carry set\n; carry set indicates no light change\n\n| ; | alert system to start speech |  |\n| :--: | :--: | :--: |\n| Do_ltchg: |  |  |\n|  | LDA | Stat_3 |\n|  | AND | \\#Light_stat |\n|  | BNE | LT_ref_brt |\n|  | LDA | Stat_4 |\n|  | ORA | \\#Do_1ght_dim |\n|  | JMP | Ltref_egg |\n| LT_ref_brt: |  |  |\n|  | LDA | Stat_4 |\n|  | ORA | \\#Do_1ght_brt |\n| Ltref_egg: |  |  |\n|  | STA | Stat_4 |\n|  | CLC |  |\n|  | RTS |  |\n\n; system\n; ck if went light or dark\n; went brighter if set\n; get system\n; set indicating change < reff level\n;\n; set indicating change > reff level\n; update egg info\n; carry clear indicates light > reff\n; done
-      Diag7.asm\n;F:IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
-      # Diag7.asm \n\n
-      | CLI |  | ; enablu IRQ |  |\n| :--: | :--: | :--: | :--: |\n| JSR | Kick JRQ | ; wait for time: | s-sync |\n| JSR | TI_reset | ; clear TI from |  |\n| T.A | Feed_count | ; get 10 byte of macro to call |  |\n| JSR | Diag macro | ; go send motor/speech |  |\n| Diag2b: | ; Speaker tone | I.R. xmit |  |\n|  | Port_C | ; get I/O |  |\n| AND | \\#Touch_bck | ; wait for switch |  |\n| BNL | Diag2c | ; go check if next test is requesting |  |\n| LDA | \\#1 | ; hi beep for start of test |  |\n| JSR | Piag macro | ; go send motor/speech |  |\n| Diag2blp: |  |  |  |\n| LDA | Port_C |  |  |\n| AND | \\#Touch_bck |  |  |\n| BEQ | Diag2blp |  |  |\n| Diag2b1: |  |  |  |\n| LDA | \\#04 | ; send long tone (1k sinewave) |  |\n| JSR | Diag macro | ; go send motor/speech |  |\n| LDA | Port_C | ; |  |\n| AND | \\#Touch_bck | ; mask for back switch |  |\n| BNE | Diag2b1 | ; loop until back switch pressed |  |\n| Xmit_lp: |  |  |  |\n| LDA | \\#01 | ; beep |  |\n| JSR | Diag macro | ; go send motor/speech |  |\n| LDA | Port_C | ; |  |\n| AND | \\#Touch_bck | ; mask for back switch |  |\n| BNE | Xmit_lp | ; loop until back switch pressed |  |\n| LDA | \\#05h | ; send '5' to I.R. xmiter |  |\n| STA | TEMP2 | ; |  |\n| LDA | \\#F1h | ; send command I.R. to TI |  |\n| STA | TEMP1 | ; |  |\n| JSR | Xmit_TI | ; send it |  |\n| dumb: | LDA | Port_C | ; get I/O |\n|  | AND | \\#Touch_bck | ; wait for switch |\n|  | BNE | dumb | ; wait for back to be pressed |\n| dumber: | LDA | Port_C | ; get I/O |\n|  | AND | \\#Touch_frnt | ; ck switch |\n|  | BEQ | Next_1 |  |\n|  | JMP | Xmit_lp |  |\n| Next_1: | LDA | \\#2 | ; hi beep for start of test |\n|  | JSR | Diag macro | ; go send motor/speech |\n|  | LDA | Port_C | ; get I/O |\n|  | AND | \\#0Ch | ; ck for front and back switches made |\n|  | BEQ | Next_1 | ; if both not 10 then bail out else start diag |\n|  | JMP | New_top |  |\n| ; Full test starts here |  |  |  |\n| Diag2c: | LDA | Port_D | ; get I/O |\n|  | AND | \\#Ball invert | ; wait for switch |\n|  | BNE | Diag2d | ; onward if key pressed |
-      # Diag7.asm \n\nJMP Diag2a ; loop back to top if none\nDiag2d:\nLDA \\#01 ; hi beep for start of test\nJSR Diag_macro ; go send motor/speech\n; FULL TEST MODE\n\nDiagF1:\nLDA\nSTA\nDiagFla:\nLDA\nAND\nBNE\nTC\nBNE\nLDA\nJSR\nDiagF2:\nLDA\nAND\nCMP\nBEQ\nLDA\nJSR\n; wait for no tilt to start full diag\n\\#Dwait_tilt ; set delay to be sure no tilts\n\\#Dwait_tilt\n; set delay to be sure no tilts\n\\#T\n;\nPort_D\n\\#3\nDiagF1\n\\#3\n; pass beep\n; go send motor/speech\n; test tilt 45 deg\nPort_C\n\\#00001100b\n\\#0CN\nDiagF22\n; fail beep\nDiag_macro\nDiagF23:\nLDA\nAND\nBEQ\nDiagF23\n; fail beep\nDiag_macro\nDiagF23:\nLDA\nAND\nBEQ\nDiagF2\n; get I/O\n; ck for tilt switch (hi = tilted)\nwait for tilt\n; get I/O\n; ck if invert sw made\n; jump to error if so\n; get I/O\n; get front \\& back\n; must be hi else error\n; if hi then pass\nDiagF2a:\nLDA \\#3\n; fail beep\nJSR Diag_macro\n; go send motor/speech\nJMP DiagF2\n; loop till no error\nDiagF2b:\nLDA \\#2\n; pass beep\nJSR Diag_macro\n; go send motor/speech\nDiagF2c:\n; wait for no tilt before continuing
-      # Diag7.asm \n\n| LDA | Port_C |\n| :-- | :-- |\n| AND | \\#Touch_bck |\n| BEQ | DiagF3b |\n\nLDA Port_D\n:get I/O\nAND\n:ck for tilt switch (hi = tilted)\n: ck for tilt switch (hi = tilted)\nBNE DiagF2c\nwait for no tilt\n(DANGER\nLDA\n: 3\nAND\nBEQ\n: 3\n: test back switch\n: 1\n: 1\n: 1\n: 1\nDiagF3:\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n: 3\n
-      DiagF4a2:\nLDA\nAND\nBEQ\nLDA\nAND\nORA\nSTA\nLDA\nORA\nAND\nAND\nSTA\n\nPort_C\n$\\square$\nDiagF4a2\nStat_2\n$\\square$\n$\\square$\n$\\square$\nPort_C\n$\\square$\n$\\square$\n$\\square$\n\nPort_C\n$\\square$\n$\\square$\n\n|  |  |  |\n| :-- | :-- | :-- |\n|  |  |  |\n\nget I/O wait for front to clear\n;ck switch\n;if pressed then wait for release\n; get system\n; clear fwd flag\n; set motor in motion\n;update system\n; get current status\n; turn both motors off\n; move motor in rev dir\n; get I/O wait for front\n;ck switch\n; got it\n; loop till found\n; Send motor end to end and stop on cal sw, else error\nDiagF4a4:\nLDA\nORA\nSTA\nLDA\nLDA\nJSR\n; get current status\n; turn both motors off\n;update\n; get system\n; clear activ flag\n; update system\n; start motor test\n; go\n; set delay for motor to stop\n; $A$ * half sec delay\n; get I/O\n; to when hit\n;no position switch found\n; pass beep\n; go send it\n; done\nDiagF4b:\nLDA\nJSR\nDiag macro\n; fail beep\n; go send it\n; send motor to mouth open for feed sw test\nPort_C ; get I/O\n; wait for switch\nDiagF5\n; loop\nLDA\n; feed position\nJSR\nDiag macro\n; send it\nDiagF6:\n; ck for feed sw, all other sw = error\n; Remember to test invert before setting feed sw test, else conflict.\nLDA\nSTA\nLDA\nAND\nCMP\nBNE\n\n## $\\# 00$\n\nSTA\nPort_C\n$\\square$\n$\\square$\n; clear feed sw enable\nPort_C\n; get I/O\n; ck for front and back switches made\n; ck both are clear\n; wait till are
-      # Diag7.asm \n\n| LDA | Port_D | ; get I/O |\n| :--: | :--: | :--: |\n| AND | \\#03 | ; ck fuc tilt and invert |\n| BNL | DiagF a | ; if either hi then wait till clear |\n| JMP | DiagF6b | ; jump when all clear |\n| DiagF6a: |  |  |\n| LDA | \\#3 | ; fail beep when any other switch made |\n| JSR | Diag macro | ; send it |\n| JMP | DiagF6 | ; loop |\n| DiagF6b: |  |  |\n| ; mod diag6 ; inc random number seeds until feed switch down |  |  |\n| INC | Seed_1 | ; create random based on switches |\n| LDA | TMA LSB | ; get timer A also (should be unknown) |\n| STA | Seed_2 | ; save it |\n| ;end mod |  |  |\n| LDA | \\#FFh | ; turn DAC2 on to enaule feed switch |\n| STA | DAC2 | ; out |\n| LDA | Port_D | ; get I/O |\n| AND | \\#Ball_invert | ; ck if feed switch closed |\n| BEQ | DiagF6 | ; loop until switch closed |\n| LDA | \\#00 |  |\n| STA | DAC2 | ; clear feed sw enable |\n| LDA | \\#7 | ; pass beep |\n| JSR | Diag macro | ; go send motor/speech |\n| DiagF7: | ; Light sensor test |  |\n| ; mod to compensate for new light sense routine |  |  |\n| LDA | \\#00 | ; clear light timer to force new reff cycle |\n| STA | Light timer | ; set it |\n| LDA | Stat_3 | ; get system |\n| ORA | \\#Lt reff | ; make this pass a new light reff |\n| STA | Stat_3 | ; update |\n| JSR | Get_1ight | ; go get light level, establish 1st level |\n| LDA | Stat_4 | ; |\n| AND | \\#Nt_do_lt_dim | ; clear indicating change > reff level |\n| STA | Stat_4 | ; update system |\n| JSR | Get_1ight | ; go get light level sample |\n| LDA | TEMPI | ; get new count |\n| STA | Light_reff | ; update system |\n\nDiag7a:\nJSR Get_1ight ; go get again and test for lower level\nLDA Stat_4 ; get system\nAND \\#Do_1ght_dim ; check if went dimmer\nBEQ DiagF7a ; loop if no change\nLDA \\#8 ;pass beep and motor motion\nJSR Diag macro ; send it\nDiagF8:\n; Sound sensor test\nLDA \\#OO\n; clear sound timer to force new reff cycle\nSTA Sound_timer ; set\nLDA Stat_1 ; get system again\nORA \\#End_reff ; make this pass a new sound reff
-      | STA | Stat_1 | ;update |\n| :--: | :--: | :--: |\n| JER | Get_sound | ;go get light level, establish 1st level |\n| LDA | Stat_4 | ; |\n| AND | \\#Nt_do_and | ;clear indicating change > reff level |\n| STA | Stat_4 | ;update system |\n| DiagF8a: |  |  |\n| JER | Get_sound | ;go get again and test for lower level |\n| LDA | Stat_4 | ;get system |\n| ANJ | \\#Do_and | ; check if went louder |\n| BEQ | DiagF8a | ; loop if no change |\n| LDA | \\#9 | ;pass beep and motor motion |\n| JER | Diag_macro | ; send it |\n| DiagF9: | ;wait for I.R. data received |  |\n| LDX | \\#10 | ; ;Tracker change, orginal is 100 |\n| DiagF9al: |  |  |\n| LDA | \\#1 |  |\n| JER | Half_delay |  |\n| DEX |  |  |\n| BNE | DiagF9al |  |\n| JER | D_IR_test | ;go ck for data |\n| BCC | DiagF9 | ; ; loop until data receive |\n| CMP | \\#A5H | ; is it the expected data |\n| BNE | DiagF9a | ; jump if wrong data |\n| LDA | \\#1 | ; pass beep and motor motion |\n| JER | Diag_macro | ; send it |\n| JMP | DiagF10 | ; done |\n| DiagF9a: |  |  |\n| LDA | \\#3 | ; fail beep and motor motion |\n| JER | Diag_macro | ; send it |\n| DiagF10: | ; all tests complete, send to sleep mode |  |\n| LDA | \\#10 | ; |\n| JER | Half_delay | ; |\n| LDA | \\#10 | ; put furby in sleep postion |\n| JER | Diag_macro | ; send it |\n| ; Clear RAM to 00 H |  |  |\n| ; we dont clear Seed_1 or Seed_2 since they are randomized at startup. |  |  |\n| LDA | \\#00H | ; data for fill |\n| LDX | \\#D7h | ; start at ram location |\n| Clear: |  |  |\n| STA | 00,X | ; base 00, offset $x$ |\n| DEX |  | ; next ram location |\n| CPX | \\#7FH | ; check for end |\n| BNE | Clear | ; branch, not finished |\n\nRandom voice selection here\nLDA \\#80h\n; get random/sequential split
-      # Diag7.asm \n\n| STA | IN_DAT | ;save for random routine |\n| :--: | :--: | :--: |\n| LDX | \\#00 | ;make sure only gives random |\n| LDA | \\#10h | ; get number of random selections |\n| JSR | Ran_seq | ;go get random selection |\n| TAX |  |  |\n| LDA | Voice_table, X | ; get new voice |\n| STA | Rvoice | ; set new voice pitch |\n\nOn power up or reset, Furby must go select a new name , . ., ahw how cute.\n\n| JSR | Random |  |\n| :-- | :-- | :-- |\n| AND | \\#1Fh | ; get 32 possible |\n| STA | Name | ; set new name pointer |\n\n\n| LDA | \\#FFh | ; insure not hungry or sick |\n| :-- | :-- | :-- |\n| STA | 'ungry_counter | ; max not hungry |\n| STA | ick_counter | ; Max not sick |\n\n; Clear training on all sensors\n\n| LDA | \\#00 |\n| :-- | :-- |\n| STA | iw.p_ID |\n| STA | Temp_ID2 |\n| STA | Tilt_learned |\n| STA | Tilt_lrn_cnt |\n| STA | Feed_learned |\n| STA | Feed_lrn_cnt |\n| STA | Light_learned |\n| STA | Light_lrn_cnt |\n| STA | Dark_learned |\n| STA | Dark_lrn_cnt |\n| STA | Front_learned |\n| STA | Front_lrn_cnt |\n| STA | Sound_learned |\n| STA | Sound_lrn_cnt |\n| STA | Wake_learned |\n| STA | Wake_lrn_cnt |\n| STA | Invert_learned |\n| STA | Invert_lrn_cnt |\n| JMP | GoToSleep | ; write ee memory YO |
+      STA Port_A image ;save image RTS
+;
+;
+;
+Read data 16-bit data word from EEPROM at specified address
+on call: $X=$ EEPROM data address (0-63)
+on return: ACC = EEPROM data (low byte)
+$X=$ EEPROM data (high byte)
+stack usage: 2
+RAM usage: TEMPO
+;
+;
+EEREAD:
+STX TEMPO ;store data addr
+JSR EEENA ; turn on CS
+SEC ;send start bit
+JSR OUTBIT ;
+SEC
+JSR OUTBIT ;
+CLC
+JSR OUTBIT ;
+LDX \\#6
+ROL TEMPO
+ROL TEMPO
+; :init addr bit count
+; align MS addr bit in bit 7
+; : shift address bit into carry
+;send it to EEPROM
+; bump bit counter
+; and repeat until done
+LDX \\#16
+; init data bit count
+LDA \\#0
+STA TEMPO
+; init data bit accumulators
+STA TEMP1
+;
+EERDO4:
+JSR TOOCLK ; toggle clock for next bit
+LDA \\#020H ; test data bit (B.5) from EEPROM
+BIT Port_B
+BNE EERDO8
+;
+CLC
+JMP EERD10
+;
+EERDO8:
+SEC
+;
+EERD10:
+ROL TEMPO
+ROL TEMP1
+; :create data bit into 16-bit
+; accumulator
+; bump bit counter
+      ```
+    BNE EERDO4 ; ; ; and repeat until done
+JSR EEDIS ; turn off CS and return
+LDA TEMPO ; ret w/data byte in ACC
+LDX TEMP1 ; ; and X regs
+RTS
+;
+; ****************************************************************
+; Issue ERASE/WRITE ENABLE or DISABLE instruction to EEPROM
+; (instruction = 1001100000)
+; on call: --
+; on return: --
+; stack usage: 2
+RAM usage: TEMP3
+;
+***
+EEWEN:
+    LDA #0FFH ; ;set up enable inst
+    JMP EEWEO2
+EEWDS:
+    LDA #000H ; ; set up disable inst
+EEWEO2:
+    STA TEMP3 ; save instruction
+    JSR EEENA ; turn on CS
+    SEC ; send start bit
+    JSR OUTBIT ; ;
+    CLC ; send ENA/DIS opcode (00)
+    JSR OUTBIT ; ;
+    CLC ; ;
+    JSR OUTBIT ; ;
+    LDX #6 ; init instr bit count
+EEWEO4:
+    ROL TEMP3 ; shift instruction bit into carry
+    JSR OUTBIT ; ;send it to EEPROM
+    DEX ; bump bit counter
+    BNE EEWEO4 ; ; ; and repeat until done
+RTS
+;
+;
+; Write data byte to EEPROM at specified address
+; on call: TEMPO = EEPROM data address (0-63)
+    _ _ ACC = data to be written (low byte)
+        X = data to be written (high byte)
+    on return: C = 0 on successful write cycle
+        C = 1 on write cycle time out
+    stack usage: 4
+```
+      RAM usage: TEMPO, TEMP1, TEMP2
+
+      RTS
+;
+
+;
+; Subroutine creates sensor table entry for the selected age.
+; One table for each age.
+; Enter with Acc holding the 1-16 table selection.
+; Exit with Acc \\& Temp0 holding the offset 0-FF of the 1-4 age entry.
+; Special condition where we have only two tables instead of 4
+; (where each table is called based on age), if the \"half_age\" bit is
+; set then ages $1 \\& 2$ call table 1 and ages $3 \\& 4$ call table 7.
+Decid_age:
+STA TEMPO ; save 0-0f selection
+LDA Stat_1 ; system
+AND \\#Half_age ; test if this is a special 2 table select
+BEQ Decid_normal ; jump if not
+LDA Stat_1
+AND \\#Nt_halff_age ; clear req
+STA Stat_1 ; update system
+LDA Age ;
+AND \\#03h ; get rid of bit 7 (9th counter bit )
+CLC
+SBC \\#01 ; actual age is $0-3$, test if $<2$
+BCC Dec_age1 ; choose age 1 ( actually 0 here)
+JMP Spcl_age2 ; choose age 2 ( actually 1 here)
+Decid_normal:
+; ; ; mod TestR3a.... 25\\% of time chore age1 to add more furbish after
+; ; ; he is age 4.
+JSR Random ; get a number
+CLC
+SBC \\#Random_age ; below this level selects age 1
+BCS Nospcl_age ; jump if >
+LDA \\#00 ; set age 1
+JMP Do_age ; go do it
+; ; ; end mod
+Nospcl_age:
+LDA Age ; get current
+AND \\#03h ; get rid of bit 7 (9th counter bit )
+CMP \\#03 ; is it age 4
+BNE Dec_age3 ; jump if not
+LDA \\#96 ; point to 4th field
+JMP Do_age ; finish load from table
+      Life:
+; Each FEED trigger increments the HUNGRY counter by (EQU = FOOD).
+;Hungry >80 (Need_food) + Sick >CO (Really_sick) = normal sensor
+;Hungry >80 (Need_food) + Sick <CO (Really_sick) = random SICK/SENSOR
+;Hungry <80 (Need_food) + Sick >CO (Really_sick) = random HUNGRY/SENSOR
+;Hungry <80 (Need_food) + Sick <CO (Really_sick) = random
+HUNGRY/SICK/SENSOR
+;Hungry <60 (Sick_reff) + Sick <CO (Really_sick) = random HUNGRY/SICK
+;Hungry $>60$ then each sensor motion increments Sick
+;Hungry $<60$ then each sensor motion decrements Sick
+; When the system does a cold boot, we set HUNGRY \\& SICK to FFh.....
+; When returning from here, carry is set if sensor should execute
+; normal routine, and cleared if sensor should do nothing.
+;REFF only
+;Hingry_counter
+; Sick_counter
+;Food EQU 20h ;amount to in:rease 'Hungry' for each feeding
+;Need_food EQU 80h ; below this starts complaining about hunger
+;Sick_reff EQU 60h ; below this starts complaining about sickness
+; Real1y_sick EQU C0h ; below this only complains about sickness
+;Hungry_dec EQU 01 ;subtract X amount for each sensor trigger
+;Sick_dec EQU 01 ;subtract X amount for each sensor trigger
+;Max_sick EQU see EQU
+
+LDA Hungry_counter ; current
+;mod F-re1s2 ;
+; CLC
+SEC
+; end mod
+SEC \\#Hungry_dec ;-X for each trigger
+BCS frst_life ; jump if not neg
+LDA \\#00 ; reset
+fret_life:
+STA Hungry_counter ; get count
+CLC
+SEC \\#Sick_reff ;ck if getting sick
+BCS Sick_inc ; jump if not sick
+LDA Sick_counter ; current
+;mod F-re1s2 ;
+; CLC
+SEC
+; end mod
+;mod testr3a
+; SBC \\#Sick_dec ;-X for each trigger
+BCS frst_sick ; jump if not neg
+      JER Ran_seq 0 decide random/sequential BCS Sick_ra: ;Ran: :ode when carry SET
+
+LDA Sensor_timer ;ck if timed out since last action BEQ Sick_reset ;yep
+INC Sickr_count ;if not then next table entry
+LDA Sickr_count ;get
+CLC
+SBC \\#Seq_sick-1 ;ck if > assignment
+BCC Sick_side ; jump if <
+LDA \\#Seq_sick-1 ; dont inc off end
+STA Sickr_count ;
+JMP Sick_side ; do it
+Sick_reset:
+LDA \\#00 ;reset to 1st entry of sequenrial
+STA Sickr_count ;
+Sick_side:
+LDA \\#Global_time ;get timer reset value
+STA Sensor_timer ;reset it
+LDA Sickr_count ;get current pointer to tables
+Sick_ran:
+JSR Decid_age ; do age calculation for table entry
+LDX TEMPO ; age offset
+LDA Sick_S1,X ;get lo byte
+STA Macro_lo ;save lo byte of Macro table entry
+IMX
+LDA Sick_S1,X ;get hi byte
+STA Macro_Hi ; arrive hi byte of Macro table entry
+JSR Get_macro ; go start motor/speech
+JSR :olrdy ;Do / get status for speech and motor
+CLC ; tells sensor to do nothing
+RTS
+;
+;
+;
+;
+GoToSleep:
+; save light sensor fail or sleep command in 'Seed_2' into EEPROM
+
+; EEPROM WRITE
+      ; Enter with 'TEMPO' holding adrs of 0-63. Areg holds lo byte and ; Xreg holds hi byte. If carry is clear then it was succesfull, if ; carry is set the write failed.
+; MODIFIED eaprom, load lo byte in temp1 and + byte in temp2
+; and call EEWRIT2.
+
+| LDA | $\\# 00$ | ; use DAC output to put TI in reset |
+| :-- | :-- | :-- |
+| STA | DAC1 |  |
+| SEI |  | ; turn IRQ off |
+
+LDA \\#00 ;EEPROM adrs to write data o
+STA Sgroup ; save adrs
+LDA \\#13 ; number of ram adrs to transfi (x/2)
+STA Which_delay ; save
+LDA \\#00 ; Xreg offset
+STA Which_motor ; save
+; Need one read cycle before a write to wake up EEPROM
+LDX Which_motor ; eeprom address to read from
+JSR EEREAD ; get data (wakes up eaprom)
+
+IWrite_loop:
+
+| LDA | Sgroup | ; get next EEPROM adrs |
+| :-- | :-- | :-- |
+| STA | TEMPO | ; buffer |
+| LDX | Which_motor | ; ram source |
+| LDA | Age,X | ; lo byte (data byte \\#1) |
+| STA | TEMP1 | ; save data bytes |
+| INC | Which_motor | ; |
+| INX |  |  |
+| LDA | Age, X | ; |
+| STA | TEMP2 | ; hi byte (data byte \\#2) |
+| JSR | EEWRIT2 | ; send em |
+| BCS | EEfall | ; jump if bad |
+| INC | Sgroup | ; 0-63 EEPROM adrs next |
+| INC | Sgroup | ; 0-63 EEPROM adrs next (eeprom writes 2 |
+
+bytes)
+INC Which_motor ; next adrs
+DEC Which_delay ; how many to send
+BNE IWrite_loop ; send some more
+;
+GoToSleep_2:
+
+Include
+Sleep.asm ;
+; EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+; \"Interrupt Sulroutines
+; EIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+      ; *********** CAUTION ************
+; Any ram location written outside of IRQ can only be read in the IRQ,
+; likewise if written in the IRQ, then can only be read outside the IRQ.
+; THIS WILL PREVENT DATA CORRRUPTION.
+
+NMI :
+RTI
+;Not used
+
+IRQ:
+PHA ;push acc on stack
+PHP ;push cpu status on stack
+; ****** timer $A=166$ uSEC ********
+CKTimerA:
+; LDA Interrupts ;get who did it
+; AND $\\# 20 \\mathrm{H} \\quad$; test for timerA
+; BNE Do_ta ; jump if is
+; JMP Ck_timerB ;
+;Do_ta:
+;***** timer $B=700$ uSEC ******
+CK_timerB:
+LDA Interrupts ;get status again
+AND $\\# 10 \\mathrm{H} \\quad$; test for timer B
+BNE Do_timeB ; jump if request true
+JMP Intt_false ; bypass all if not
+; also changed TimerB relacd value from \\#10h to 00 in EQU
+Do_timeB:
+; RE-CALIBRATE SWITCH for motor position
+; This counter must meet a threshold to decide if the
+; calposition ratch is really engaged.
+LDA Purt_C ;get I/O
+AND \\#Motor_cal ; 10 when limit hit
+BNE No_cal_sw ; no position switch found
+INC Cal_switch_cnt ; inc each time found low
+BNE Cal_noroll ; jump if dldnt roll over (stoppeu on sw tch)
+LDA \\#31 ; max count
+STA Cal_switch_cnt ;
+Cal_noroll:
+LDA Cal_switch_cnt ;
+CLC
+SBC \\#30 ; ck if enough counts
+BCC No_lim_etp ; jump if not enough
+LDA \\#Cal_pos_fwd ; force value
+STA Pot_timeL2 ; reset both
+      JMP No Jim stp ; done
+No_cal_sw:
+LDA \\#00 ; clear count if hi
+STA Cal switch cnt ; update
+
+No_lim_stp:
+LDA Wait time ; 4 times thru loop $=2.9 \\mathrm{mSec}$
+BNE WTa ; $>0$
+LDA \\#04 ; counter reset
+STA Wait_time ; reload
+JMP Timer norm ;
+WTa: DEC Wait_time ;
+JMP TimerB_dn ; bypass timers until done
+Timer norm:
+;******** Below routines run at 2.9 mSec
+LDA Mot speed cnt ; ck for active
+BEQ No spd m ; jump if not
+DEC Mot speed cnt ; -1
+No spd_m:
+LDA motorstoped ; motor drift timer
+BEQ No_mstop ; jump if done
+DEC motorstoped ; -1
+No_mstop:
+LDA Motor_led_timer ; Motor_led timer * 742 mSec
+BEQ TimeB1 ; jump if done
+DEC Motor_led_timer ; -1
+TimeB1:
+LJA Cycle_timer ; 2.9mSec timer * cycle reload
+EaQ TimeB2 ; jump if done
+DEC Cycle_timer ; -1
+TimeB2:
+;m LDA Motor_pulse ; 2.9mSec timer * Motor_pulse
+m BEQ TimeB3 ; jump if done
+;m DEC Motor_ pulse ; -1
+TimeB3:
+DEC Mili sec ; -1 \\& allow rollover
+BNE TimerB_dn ; wait for rollover ( $2.9 \\mathrm{mS} * 256=742 \\mathrm{mSec}$ )
+INC Mili sec flag ; tell task rtn to decrement timers
+TimerB dn:
+;******** We could test all interrupts here as needed
+; Ck2Khz:
+; Ck500hz:
+; Ck60hz:
+;******** Check motor position - IR slot in wheel sensor
+      This version does two reads to eliminate noise and sets a done flag to prevent multiple counts. It also reads twice when no slot is present to clear the done flag.
+
+| LDA | Port_C |  | ;get I/O |
+| :--: | :--: | :--: | :--: |
+| AND | \\#Pos_sen | ; ck position sensor |  |
+| BNE | Clr_pos | ; jump if no : | ,ger |
+| LDA | Port_C |  | ; get I/O |
+| AND | \\#Pos_sen | ; READ $2 x$ to prevent noise trigger |  |
+| BNE | Clr_pos | ; jump if no IR trigger |  |
+| LDA | Slot_vote | ; get prev cycle |  |
+| BEQ | Pc_done | ; bail if prev counted |  |
+| LDA | \\#00 | ; |  |
+| STA | Slot_vote | ; set ram to 0. (faster than setting a bit) |  |
+| JMP | Force_int | ; go count slot |  |
+
+Clr_pos:
+LDA Port_C ;get I/O
+AND \\#Pos_sen ; READ $2 x$ to prevent noise trigger
+BEQ Pc_done ; not 2 equal reads so bypass this cycle
+STA Slot_vote ; set ram to 1. (faster than setting a bit)
+JMP Pc_done ;
+
+# ExtportC: 
+
+| JMP | Intt_false ; this should be turned off |
+| :--: | :--: |
+| LDA | Interrupts ; get status again |
+| AND | \\#01H ; test for port C bit 1 rising edge |
+| BEQ | Pc_done ; jump if not |
+
+Force_int:
+LDA Port_D_Image ; system
+AND \\#Motor_led ; ck if position I.R. led is on
+BEQ Pc_done ; jump if not off
+LDA Stat_2 ; get system
+AND \\#Motor_fwd ; if set then FWD else REV
+BEQ Cnt_rev ; jump if clr
+INC Pot_timeL2 ; sensor counter
+CLC
+LDA Pot_timeL2 ; current
+SBC \\#207 ; ck for > 207
+BCC Updt_cnt ; jump if not
+LDA \\#00 ; roll over
+STA Pot_timeL2 ;
+JMP Updt_cnt ;
+Cnt_rev:
+DEC Pot_timeL2 ; -1
+CLC
+LDA \\#208 ; max count
+Pot_timeL2 ; ck for negative ( >207)
+S Updt_cnt ; jump if not
+Cnt_c
+LDA \\#207 ; when neg roll over to max count
+STA Pot_timeL2 ;
+Updt_cnt:
+INC Drift_counter ; to be used for braking pulse
+      JMP Intt motor end
+M_drft_R2:
+DEC Drift_rev ;-1
+LDA Port_D_Image ;get system
+ORA \\#Motor_off ;turn both motors off
+JMP Intt motor end
+Intt_motor:
+LDA Stat_3
+AND \\#C0h ; get motor command bits
+STA Intt_Temp ;sav motor direction
+:___ Furby1? .. move motor pulse width to interrupt routine
+LDA Motor_pulse1 ; get on time
+BEQ Intmotor1 ; jump if 0
+DEC Motor_pulse1 ;-1
+JMP Intmotor_dn ;exit (dent change Intt_temp if on)
+Intmotor1:
+LDA Motor_pulse2 ; get off time
+BEQ Intmotor2 ; got reset timer
+DEC Motor_pulse2 ; -1
+LDA \\#C0h ; shut motor off
+STA Intt_Temp ;
+JMP Intmotor_dn ;exit
+Intmotor2:
+LDA Mon_len ; reset on time
+STA Motor_pulse1 ;
+LDA Moff_len ;reset off time
+STA Motor_pulse2 ;
+Intmotor_dn
+:---- end motor pulse width
+LDA Port_D_Image ; get system
+AND \\#3Fh ; clear motor direction bits
+CLC
+ADC Intt_Temp ; put in motor commands
+Intt_motor_end:
+STA Port_D_Image ; update system
+; at Tracker
+EOR \\#\\%11000000 ; ; Tracker add invert motor drivers
+; end Tracker
+STA Port_D ; output
+Intt_done: ;gc ral curn
+LDA Stat_3 ; systs
+ORA \\#IRQ_dn ; flag :tem IRQ occured
+STA Stat_3 ; upiat
+Intt_false:
+LDA \\#00H ; clear ail intts first
+STA Interrupts ;
+LDA \\#Intt_dflt ; get default for interrupt reg
+STA Interrupts ; set reg \\& clear intt flag
+PLP ; recover CPU
+      PLA
+;recover ACC
+RTI
+;reset interrupt
+; communication protocal with the TI is:
+FF is a no action command. (used as end of speech command)
+FE sets the command data mode and the TI expects two additional data bytes to complete the string. ( 3 TOTAL)
+ALL OTHERS (0-FD) ARE CONSIDERED START OF A SPEECH WOOD !
+Command data structure is BYTE 1 + BYTE 2 + BYTE 3
+; BYTE 1 is always FE
+; Command 1
+; BYTE $2=$ FE is pitch table control;
+BYTE $3=$ bit 7 set = subtract value from current course value
+; clr = add value to current course value
+bit 6 set $=$ select music pitch table
+; clr = select normal speech pitch table
+bit $0-5$ value to change course value (no change $=0$ )
+; Command 2
+; BYTE $2=$ FD is Infrared transmit cmnd
+; BYTE $3=$ Is the I.R. code to send ( 0 - 0Fh only )
+; Command 3
+; BYTE $2=$ FC is the speech speed control
+BYTE $3=$ a value of $0-255$ where 2 Eh is normal speed.
+; Enter subroutine with TEMP1 = command byte (1st)
+; TEMP2 = data byte (2nd)
+Xmit_TI:
+LDA \\#FEh ; tells TI command da:a to follow
+JSR Spch_more ; out data
+LDA TEMPi ; command code
+JSR Spch_more ; out data
+LDA TEMP2 ; data to send
+JSR Spch_more ; out data
+RTS ; done
+; There is an entry for each bank of speech and only the words in that ; bank are in the list. THIS is a subroutine call.
+; The first time thru, we call SAY_x and as long as WORD_ACTIV or SAY_ACTIV
+; is set we call DO_NEXTSENT until saysent is done.
+; There are 4 groups of 128 pointers in each group. This gives 512
+      saysents.
+; 1. Enter with 'Which_word' holding 0-12\" and 'Sgroup' for the 1 of 4 tables
+; which points to two byte adrs of a saysent. These two bytes are
+; lcoded into Saysent_lo \\& Saysent_hi.
+; 2. Dat s shuffled to the TI according to the BUSY/REQ line
+; Currently we have 167 speech words or sounds in ROM. Words 1 - 12
+; are in bank 0 and 13 - 122 are in bank 1 \\& 123 - 167 in bank 2.
+Say_0:
+
+      Xney_say:
+
+| LDX | \\#00 | ;no offsett |
+| :-- | :-- | :-- |
+| LDA | (Saysent_lo,X) | ;get data @ 16 bit adrs |
+
+CLC
+ADC Rvoice ;adjut to voice selected on power up
+STA TEMP2 ;save new speech pitch
+LDA \\#FEh ;command for TI to except pitch data
+STA TEMP1
+; The math routine converts the value to 00 for 80 and
+; if 0 then subtracts from 80 to get the minus ver: a of 00
+; ie, if number is 70 then TI gets sent $10(-1$
+LDA TEMP2 ;get voice with offsett
+BRI No_voice_chg ;if $>80$ then no char
+LDA \\#80h ;remove offsett if <80
+CLC
+SBC TEMP2 ; kill offset
+STA TEMP2 ;update
+No_voice_chg:
+JSR Xmit_TI ;send it to TI
+Do_nextsent:
+Frst_say:
+INC Saysent_lo ; next saysent pointer
+BNE Scnd_say ; jump if no roll over
+INC Saysent_hi ; +1
+Scnd_say:
+LDX \\#00 ;no offsett
+LDA (Saysent_lo,X) ;get data @ 16 bit adrs
+CM? \\#FFH ;check for end
+BEQ Say_end ; done
+LDA (Saysent_lo,X) ;get data @ 16 bit adrs
+STA Which_word ;
+Wtest:
+CLC
+SBC \\#12 ;ck if in bank 1
+BCS Get_group1 ; jump if is
+Get_group0:
+LDA \\#00 ; set bank
+STA Bank_ptr ; Bank number
+CLC ; clear carry
+LDA Which_word ;get word
+ROL A ;2's offsett
+TAX ;load offset to Xreg
+LDA Word_group0,X ;get lo pointer
+STA Word_lo ;save
+INX ;X+1
+LDA Word_group0,X ;get hi pointer
+STA Word_hi ;save
+JMP Word_fini ; go do it
+Get_group1:
+LDA Which_word ; selection
+CLC
+SBC \\#122 ;ck if in bank 2
+BCS Get_group2 ; jump if is
+      | WAKE2 |  |
+| :--: | :--: |
+| $1$ | adds deep sleep mide. If 'Deep_sleep'=11h then tilt will not |
+| 1 | wake us up. only invert. |
+
+Power up reset decision for three types of startup:
+1. Powerup with feed switch zeros ram \\& EEPROM, \\& calls 10-200-10 macro.
+2. Power up from battery change wont clear EEPROM but calls 10-200-10 macro.
+3. Wake up from Port_D clears ram and jumps directly to startup. No macro.
+
+| SEI |  | :interrupts off |
+| :--: | :--: | :--: |
+| LDX | \\#COH | :startup setting |
+| STX | Interrupts | :disable Watch Dog |
+| LDX | \\#FFH | :Reset stack pointer address \\$0FFH |
+| TXS |  |  |
+| LDX | \\#0 |  |
+| LDA | Wake_up | : Get the information from h: rdware to check |
+| STA | TEMP5 | :whether reset is from power up or wakeup |
+| STX | Wake_up | :disable wakeup immediately, this action can :stop the reset occupied by another changed on :portD, so once the program can execute to :this line then chip will not be reset due to :port changed again |
+| AND | \\#\\#00000001 | :mask the rest of bit and just check the port |
+| BEC | Power_battery | :jump to power up initial if not port D |
+
+Need to debounce tilt and invert since they are very unstable
+
+| Ck_wakeup: |  |  |
+| :--: | :--: | :--: |
+| LDA | \\#00 | :clear |
+| STA | TEMP1 | : |
+| STA | TEMP2 | : |
+| LDX | \\#FFh | :loop counter |
+| Dbnc_lp: |  |  |
+| LDA | Port_D |  |
+| AND | \\#01 | :ck tilt sw |
+| BEQ | Dbmc_lp2 | : jump if not tilt |
+| INC | TEMP1 | : switch counter |
+| Dbnc_lp2: |  |  |
+| LDA | Port_D |  |
+| AND | \\#02 | :ck invert sw |
+| BEQ | Dbmc_lp3 | : jump if not invert |
+| INC | TEMP2 | : switch counter |
+| Dbnc_lp3: |  |  |
+| DEX |  | : -1 loop count |
+| BNE | Dbnc_lp | : loop |
+| LDA | Deep_sleep | : decide if normal or deep sleep |
+| CM | \\#11h |  |
+| BEQ | Dbmc_lp4 | : if deep sleep then only test invert |
+| LDA | TEMP1 | : get tilt count |
+| BEQ | Dbnc_lp4 | : jump if 0 |
+| CLC |  |  |
+| SBC | \\#. | : min count to insure not noise |
+| BCS | Power_Port_D | : jump if > min |
+      Danc_lp4:
+
+
+I Verify that Port_D is no longer changing before going to sleep. If not, the CPU will lock up without setting the low power mode. Before we exit here when count is less than minimum count, we must be sure Port_D is not changing. If we jump to sleep routine when it is not stable, the sleep routine will wait forever to be stable which causes Furby appear to be locked up.
+
+| LDA | \\#00 |  |
+| :-- | :-- | :-- |
+| STA | TEMP1 |  |
+| LDA | Port_D | :counter |
+| Test_sleep: |  |  |
+| CHP | Port_D | :check if changed |
+| BNE | Ck_wakeup | :start over if did |
+| DEC | TEMP1 | $:-1$ counter |
+| BNE | Test_sleep | :loop |
+| TMP | GoToSleep_2 | :otherwise, just goto sleep again |
+
+Power_Port_D:
+LDA \\#11h
+:signal port D wakeup
+STA Warm_cold
+JMP L_PowerOnInitial
+Power_battery:
+LDA \\#05h
+:signal battery wakeup
+STA Warm_cold
+L_PowerOnInitial:
+LDA \\#00
+:clear deep sleep command
+STA Deep_sleep
+      ```
+; MCDS :
+; LIGHT3.asm
+; Add test to light counter so that if the oscillator
+; fails, the system will ignore light sensor and keep running.
+; Light4
+; When goes to complete dark and hits the 'Dark_sleep' level
+; and stays there until the reff level updates, at that point
+; we send Furby to sleep.
+; Light5 (used in F-RELS2 )
+; Change detection of light threshold to preven: false or continuens trigger.
+Bright EQU 15 ;light sensor trigger > reff level (Hon)
+Dim EQU 15 ;Light sensor trigger < reff level (Hon)
+Shift_reff EQU 10 ;max count to set or clear prev done flag
+Dark_sleep EQU BOh ; when timer A hi =0f and timer A low
+; is = to this EQU then send him to sleep
+```
+
+; The CDS light sensor generates a square wave of 500 hz to 24 kHz based on
+; light brightness. We can loop on the sense line and count time for the
+; 10 period to determine if light has changed and compare it to previous
+; samples. This also determines going lighter or darker. We also set a timer
+; so that if someone holds their hand over the sensor and we announce it.
+; if the change isnt stable for 10 second, we ignore the change back to the
+; previous state. If it does exis for > 10 seconds, then it becomes the
+; new sample to compare against on the next cycle.
+; In order to announce light change, the system must have a consistent
+; count > 'Shift_ieff'.
+; If a previous reff has been set then the 'Up_light' bit is set to
+; look for counts greater than the reff. The system passes through the
+; light routine 'Shift_reff' times. If it is consistently greater than
+; the reff level, we get a speech trigger. If any single pass is less
+; than the reff, the counter is set back to zero. This scenario also
+; is obeyed when the trigger goes away, ie remove your hand, and the system
+; counts down to zero. ('Up_light' bit is cleared) If during this time any
+; trigger greater than reff occurs, the count is set back to max.
+; This should prevent false triggers.
+
+Get_light: ; alt entiy for diagnostics
+; This uses timer A to get a count from the 10 period of the clk
+
+| SEI |  | : interrupts off |
+| :-- | :-- | :-- |
+| LDA | \\#0C0H | ;disable timer, clock, ext ints, |
+| STA | Interrupts | ; \\& watchdog; select IRQ int. |
+| LDA | \\#000H | ; set timer A for timer mode |
+| STA | TMA_CON | ; |
+      # Light5.asm 
+
+| LDA | \\#000H | ;re-start timer A |
+| :--: | :--: | :--: |
+| STA | TMA_LSB | ; |
+| LDA | \\#000H | ; now CPUCLK; was \\#010H = CPUCLK/4 (Hon) |
+| STA | TMA_MSB | ; |
+| Ck_1ght2: |  | ; test for dead light osc |
+| LDA | TMA_MSB | ; get timer |
+| AND | \\#0Fh | ; ck for > 0E |
+| CMP | \\#0Fh | ; ck for > OE |
+| BNE | Ck_1t2a | ; jump if not |
+| LDA | TMA_LSB | ; get 10 byte |
+| CLC |  |  |
+| SBC | \\#E0h | ; ck for > ;msb+1sb =0FE0) |
+| BCC | Ck_1t2a | ; jump if not |
+| JMP | L1ight_fail | ; bail out if > |
+| Ck_1t2a: |  |  |
+| LDA | Port_D | ; get I/O |
+| AND | \\#Light_in | ; ck light clk is hi |
+| BEQ | Ck_1ght2 | ; wait for it to go hi |
+| LDA | \\#000H | ;re-start timer A |
+| STA | TMA_LSB | ; |
+| LDA | \\#C0H | ; now CPUCLK; was \\#010H = CPUCLK/4 (Hon) |
+| STA | A_MSB | ; |
+| Ck_1ght3: |  |  |
+| LDA | TMA_MSB | ; test for dead light osc |
+| AN | \\#0Fh | ; get timer |
+| Chy | \\#0Fh | ; ck for > OE |
+| BNE | Ck_1t3a | ; jump if not |
+| LDA | TMA_LSB | ; get 10 byte |
+| CLC |  |  |
+| SBC | \\#E0h | ; ck for > (msb+1sb =0FE0) |
+| BCS | Light_fail | ; bail out if > |
+| Ck_1t3a: |  |  |
+| LDA | Port_D | ; get I/O |
+| AND | \\#Light_in | ; ck light clk is 10 |
+| BNE | Ck_1ght3 | ; wait for it to go 10 to insure the clk edge |
+| Ck_1ght4: |  |  |
+| LDA | \\#000H | ;re-start timer A |
+| CTA | TMA_LSB | ; |
+| LDA | \\#000H | ; now CPUCLK; was \\#010H = CPUCLK/4 (Hon) |
+| STA | TMA_MSB | ; |
+| Ck_1ght4a: |  |  |
+| LDA | Port_D | ; get I/O |
+| AND | \\#Light_in | ; ck if still 10 |
+| BEQ | Ck_1ght4a | ; loop till hi |
+| ; Timer A holds count for 10 period of clk |  |  |
+| Light4cmp: |  |  |
+| LDA | TMA_MSB | ; get timer high byte |
+| AND | \\#00FH | ; mask out high nybble |
+| STA | TEMF2 | ; and save it |
+| LDA | TMA_LSB | ; get timer low byte |
+| STA | TEMF1 | ; and save it |
+| LDA | TMA_MSB | ; get timer A high byte anain |
+      # Light5.asm 
+
+| LDA | Stat_1 | : system |
+| :--: | :--: | :--: |
+| AND | \\#Up_1ight | :ck if incrmnt mode |
+| BNE | Rat_whltup | : jump if incrmnt mode |
+| LDA | \\#Shift_reff | : set to max |
+| STA | Light_shift | : |
+| JMP | No_lt_todo |  |
+| Rat_whltup: |  |  |
+| INC | Light_shift | $: 11$ |
+| LDA | Light_shift | :get counter |
+| CLC |  |  |
+| SBC | \\#Shift_reff | :ck if > max reff count |
+| BCC | No_lt_todo | :jump if < max count |
+| LDA | \\#Shift_reff | :reset to max |
+| STA | Light_shift | : |
+| LDA | Stat_0 | : system |
+| AND | \\#Lt_prev_dn | :check if previously done |
+| BNE | New_ltreff | : jump if was |
+| LDA | Stat_0 | : system |
+| ORA | \\#Lt_prev_dn | : set previously done |
+| STA | Stat_0 | :update |
+| LDA | Stat_1 | : system |
+| : AND | \\#EPh | : set sytem to shift decrmnt mode |
+| STA | Stat_1 | : uj fate |
+| LDA | \\#Light_reload | :reset for next trigger |
+| STA | Light_timer | : set it |
+| JMP | Do_ltchg | :go announce it |
+| New_ltreff: |  |  |
+| LDA | Light_timer | : get current |
+| BNE | No_lt_todo | :nothing to do |
+| LDA | TEMP1 | : get new count |
+| STA | Light_reff | :update system |
+| -DA | Stat_1 | : system |
+| AND | \\#EPh | : set sytem to shift decrmnt mode |
+| STA | Stat_1 | :update |
+| LDA | TEMP1 | : get current value |
+| CLC |  |  |
+| SBC | \\#Dark_sleep | :ck if > sleep level |
+| BCS | Ck_drk | : jump if > |
+| LDA | Stat_0 | : system |
+| AND | \\#7Ph | : kill prev done |
+| STA | Stat_0 | :update |
+| JMP | Kill_ltrf | : |
+| Ck_drk: |  |  |
+| LDA | Stat_0 | : system |
+| AND | \\#D rk_sleep_ prev | : ck if this was already done |
+| BNE | Kill_ltrf | :jump if was |
+| LDA | Stat_0 | : system |
+| ORA | \\#REQ_dark_sleep | : set it |
+| ORA | \\#Dark_sleep_ prev | : set also |
+| STA | Stat_0 | :update |
+
+Kill_ltrf:
+      Light5.asm
+
+|  | LDA | Stat_0 | ; system |
+| :--: | :--: | :--: | :--: |
+| 1 | AND | \\#Lt_prev_dn | ; check if previously done |
+| 1 | BEQ | No_lt_‘ado | ; jump if clear |
+|  | LDA | Light_shift | ; get shift counter |
+|  | BEQ | Kill_shift | ; jump if went zero last time |
+|  | LDA | Stat_1 | ; system |
+|  | AND | \\#Up_light | ;ck if incrmnt mode |
+|  | BEQ | Rot_shttdn | ; jump if decrmnt mode |
+|  | LDA | \\#00 | ; set to min |
+|  | STA | Light_shift | ; |
+|  | JMP | No_lt_todo | ; |
+| Rst_shttdn: |  |  |  |
+|  | DEC | Light_shift | ;-1 |
+|  | JMP | No_lt_todo | ; done |
+| Kill_shift: |  |  |  |
+|  | LDA | Stat_0 | ; system |
+|  | AND | \\#FDH | ;clears Lt_prev_dn |
+|  | STA | Stat_0 | ;update |
+|  | LDA | Stat_1 | ; system |
+|  | ORA | \\#Up_light | ; prepare to incrmnt 'Light_shift' |
+|  | STA | Stat_1 | ;update |
+
+No_lt_todo:
+SEC
+RTS
+; carry set indicates no light change
+; carry set
+; carry set indicates no light change
+
+| ; | alert system to start speech |  |
+| :--: | :--: | :--: |
+| Do_ltchg: |  |  |
+|  | LDA | Stat_3 |
+|  | AND | \\#Light_stat |
+|  | BNE | LT_ref_brt |
+|  | LDA | Stat_4 |
+|  | ORA | \\#Do_1ght_dim |
+|  | JMP | Ltref_egg |
+| LT_ref_brt: |  |  |
+|  | LDA | Stat_4 |
+|  | ORA | \\#Do_1ght_brt |
+| Ltref_egg: |  |  |
+|  | STA | Stat_4 |
+|  | CLC |  |
+|  | RTS |  |
+
+; system
+; ck if went light or dark
+; went brighter if set
+; get system
+; set indicating change < reff level
+;
+; set indicating change > reff level
+; update egg info
+; carry clear indicates light > reff
+; done
       Diag7.asm
-      Purby27.inc ; ; change twinkle egg song to one pass in macro\n\n; Lowered voice $+10$, voice +9 to voice +8\n; Wayne's mods:\n; Furby5b.inc = add voice selection table\n; Dave's\n; added feed (mouth open)\n; $170,171,173,174,175,182,183,190,191,194$\n; mod fo; ir\n; NOW 24 NAMES\n; TABLES\n; FRONT\n; PORTUNE\n; o-too-mah\n; HANGOUT\n; delay\n; FEED\n; WAKE\n; HUNGER\n; INVERT\n; BACK\n; SICK\n; LIGHT\n; DARK\n; SOUND\n; TILT\n; IR\n; FURBY SAYS\n; 435,436\n; 95,96,97\n; 439\n; Diagnostic\n; Names\n; 451,452\n; Names\n; 454\n; 455\n; 456\n; 457\n; 458\n; 459\n; 460\n; NEW EASTER EGGS\n; 468\n; 469\n; 470\n; 471\n; 472\n; 46\n\nMACRO\n$2-64$\n$65-83$\n84\n$85-101$\n102\n$103-145$\n$146-169$\n$170-201$\n202-238\n239-275\n276-292\n293-307\n308-331\n332-351\n352-392\n393-429\n430-434\n435,436\n437,438\n95,96,97\n439\n440-450\n451,452\n453\n454\n455\n456\n457\n458\n459\n460\n461\n462\n463\n464\n465\n466\n467\n; DODLE DO, ME LOVE YOU\n; SING A SONG\n; BURB ATTACK\n; furby says win sound\n; furby says lose sound
-      \n\n# ; Sensor tables \n\n; Each sensor has 4 speech/motor tables based on age 1-4, of 16 entries each.\n; These tables are 16 bit entries, the user enters as a decimal 1-511\n; **** '00' is illegal ****\n; This number calls the MACRO tables to get specific speech and motor\n; tables. MACRO tables chain together multiple motor and speech tables.\n; The first 8 entries of speech is random selections and\n; the second 8 entries is sequential.\n; one of three voice pitc: selections, randomly load table and\n; table is randomly called on power up to select a new voice.\n; THIS gives a number added to voice 3 to create which voice will be
-      | Table | Description | Page |\n|--------|-----------------------------|-------|\n|  | **Voice_table:** | 352 |\n|  | **DB** | 353 |\n|  | **DB** | 354 |\n|  | **DB** | 352 |\n|  | **DB** | 355 |\n|  | **DB** | 356 |\n|  | **DB** | 357 |\n|  | **DB** | 358 |\n|  | **DW** | 359 |\n|  | **DW** | 360 |\n|  | **DW** | 361 |\n|  | **DW** | 362 |\n|  | **DW** | 363 |\n|  | **DW** | 364 |\n|  | **DW** | 365 |\n| **Tilt_S2:** | **DW** | 366 |\n|  | **DW** | 367 |\n|  | **DW** | 366 |\n|  | **DW** | 355 |\n|  | **DW** | 368 |\n|  | **DW** | 357 |\n|  | **DW** | 369 |\n|  | **DW** | 370 |\n|  | **DW** | 359 |\n|  | **DW** | 360 |\n|  | **DW** | 371 |\n|  | **DW** | 372 |\n|  | **DW** | 373 |\n|  | **DW** | 374 |\n|  | **DW** | 355 |\n|  | **DW** | 375 |\n| **Tilt_S3:** | **DW** | 366 |\n|  | **DW** | 355 |\n\n; **#1** AGE 1\n; **#2** AGE 1\n; **#3** AGE 1\n; **#4** AGE 1\n; **#5** AGE 1\n; **#6** AGE 1\n; **#7** AGE 1\n; **#8** AGE 1\n; **#9** AGE 1\n; **#10** AGE 1\n; **#11** AGE 1\n; **#12** AGE 1\n; **#13** AGE 1\n; **#14** AGE 1\n; **#15** AGE 1\n; **#16** AGE 1\n\n; **#1** AGE 2\n; **#2** AGE 2\n; **#3** AGE 2\n; **#4** AGE 2\n; **#5** AGE 2\n; **#6** AGE 2\n; **#7** AGE 2\n; **#8** AGE 2\n; **#9** AGE 2\n; **#10** AGE 2\n; **#11** AGE 2\n; **#12** AGE 2\n; **#13** AGE 2\n; **#14** AGE 2\n; **#15** AGE 2\n; **#16** AGE 2\n\n; **#1** AGE 3\n; **#2** AGE 3
-      \n; SNITCH FOR DO SOUND) is\nSound_S1: DW 332\nDW 333\nDW 334\nDW 335\nDW 336\nDW 337\nDW 338\nDW 339\nDW 332\nDW 333\nDW 334
+;F:IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+      # Diag7.asm 
+
+
+      | CLI |  | ; enablu IRQ |  |
+| :--: | :--: | :--: | :--: |
+| JSR | Kick JRQ | ; wait for time: | s-sync |
+| JSR | TI_reset | ; clear TI from |  |
+| T.A | Feed_count | ; get 10 byte of macro to call |  |
+| JSR | Diag macro | ; go send motor/speech |  |
+| Diag2b: | ; Speaker tone | I.R. xmit |  |
+|  | Port_C | ; get I/O |  |
+| AND | \\#Touch_bck | ; wait for switch |  |
+| BNL | Diag2c | ; go check if next test is requesting |  |
+| LDA | \\#1 | ; hi beep for start of test |  |
+| JSR | Piag macro | ; go send motor/speech |  |
+| Diag2blp: |  |  |  |
+| LDA | Port_C |  |  |
+| AND | \\#Touch_bck |  |  |
+| BEQ | Diag2blp |  |  |
+| Diag2b1: |  |  |  |
+| LDA | \\#04 | ; send long tone (1k sinewave) |  |
+| JSR | Diag macro | ; go send motor/speech |  |
+| LDA | Port_C | ; |  |
+| AND | \\#Touch_bck | ; mask for back switch |  |
+| BNE | Diag2b1 | ; loop until back switch pressed |  |
+| Xmit_lp: |  |  |  |
+| LDA | \\#01 | ; beep |  |
+| JSR | Diag macro | ; go send motor/speech |  |
+| LDA | Port_C | ; |  |
+| AND | \\#Touch_bck | ; mask for back switch |  |
+| BNE | Xmit_lp | ; loop until back switch pressed |  |
+| LDA | \\#05h | ; send '5' to I.R. xmiter |  |
+| STA | TEMP2 | ; |  |
+| LDA | \\#F1h | ; send command I.R. to TI |  |
+| STA | TEMP1 | ; |  |
+| JSR | Xmit_TI | ; send it |  |
+| dumb: | LDA | Port_C | ; get I/O |
+|  | AND | \\#Touch_bck | ; wait for switch |
+|  | BNE | dumb | ; wait for back to be pressed |
+| dumber: | LDA | Port_C | ; get I/O |
+|  | AND | \\#Touch_frnt | ; ck switch |
+|  | BEQ | Next_1 |  |
+|  | JMP | Xmit_lp |  |
+| Next_1: | LDA | \\#2 | ; hi beep for start of test |
+|  | JSR | Diag macro | ; go send motor/speech |
+|  | LDA | Port_C | ; get I/O |
+|  | AND | \\#0Ch | ; ck for front and back switches made |
+|  | BEQ | Next_1 | ; if both not 10 then bail out else start diag |
+|  | JMP | New_top |  |
+| ; Full test starts here |  |  |  |
+| Diag2c: | LDA | Port_D | ; get I/O |
+|  | AND | \\#Ball invert | ; wait for switch |
+|  | BNE | Diag2d | ; onward if key pressed |
+      # Diag7.asm 
+
+JMP Diag2a ; loop back to top if none
+Diag2d:
+LDA \\#01 ; hi beep for start of test
+JSR Diag_macro ; go send motor/speech
+; FULL TEST MODE
+
+DiagF1:
+LDA
+STA
+DiagFla:
+LDA
+AND
+BNE
+TC
+BNE
+LDA
+JSR
+DiagF2:
+LDA
+AND
+CMP
+BEQ
+LDA
+JSR
+; wait for no tilt to start full diag
+\\#Dwait_tilt ; set delay to be sure no tilts
+\\#Dwait_tilt
+; set delay to be sure no tilts
+\\#T
+;
+Port_D
+\\#3
+DiagF1
+\\#3
+; pass beep
+; go send motor/speech
+; test tilt 45 deg
+Port_C
+\\#00001100b
+\\#0CN
+DiagF22
+; fail beep
+Diag_macro
+DiagF23:
+LDA
+AND
+BEQ
+DiagF23
+; fail beep
+Diag_macro
+DiagF23:
+LDA
+AND
+BEQ
+DiagF2
+; get I/O
+; ck for tilt switch (hi = tilted)
+wait for tilt
+; get I/O
+; ck if invert sw made
+; jump to error if so
+; get I/O
+; get front \\& back
+; must be hi else error
+; if hi then pass
+DiagF2a:
+LDA \\#3
+; fail beep
+JSR Diag_macro
+; go send motor/speech
+JMP DiagF2
+; loop till no error
+DiagF2b:
+LDA \\#2
+; pass beep
+JSR Diag_macro
+; go send motor/speech
+DiagF2c:
+; wait for no tilt before continuing
+      # Diag7.asm 
+
+| LDA | Port_C |
+| :-- | :-- |
+| AND | \\#Touch_bck |
+| BEQ | DiagF3b |
+
+LDA Port_D
+:get I/O
+AND
+:ck for tilt switch (hi = tilted)
+: ck for tilt switch (hi = tilted)
+BNE DiagF2c
+wait for no tilt
+(DANGER
+LDA
+: 3
+AND
+BEQ
+: 3
+: test back switch
+: 1
+: 1
+: 1
+: 1
+DiagF3:
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+: 3
+
+      DiagF4a2:
+LDA
+AND
+BEQ
+LDA
+AND
+ORA
+STA
+LDA
+ORA
+AND
+AND
+STA
+
+Port_C
+$\\square$
+DiagF4a2
+Stat_2
+$\\square$
+$\\square$
+$\\square$
+Port_C
+$\\square$
+$\\square$
+$\\square$
+
+Port_C
+$\\square$
+$\\square$
+
+|  |  |  |
+| :-- | :-- | :-- |
+|  |  |  |
+
+get I/O wait for front to clear
+;ck switch
+;if pressed then wait for release
+; get system
+; clear fwd flag
+; set motor in motion
+;update system
+; get current status
+; turn both motors off
+; move motor in rev dir
+; get I/O wait for front
+;ck switch
+; got it
+; loop till found
+; Send motor end to end and stop on cal sw, else error
+DiagF4a4:
+LDA
+ORA
+STA
+LDA
+LDA
+JSR
+; get current status
+; turn both motors off
+;update
+; get system
+; clear activ flag
+; update system
+; start motor test
+; go
+; set delay for motor to stop
+; $A$ * half sec delay
+; get I/O
+; to when hit
+;no position switch found
+; pass beep
+; go send it
+; done
+DiagF4b:
+LDA
+JSR
+Diag macro
+; fail beep
+; go send it
+; send motor to mouth open for feed sw test
+Port_C ; get I/O
+; wait for switch
+DiagF5
+; loop
+LDA
+; feed position
+JSR
+Diag macro
+; send it
+DiagF6:
+; ck for feed sw, all other sw = error
+; Remember to test invert before setting feed sw test, else conflict.
+LDA
+STA
+LDA
+AND
+CMP
+BNE
+
+## $\\# 00$
+
+STA
+Port_C
+$\\square$
+$\\square$
+; clear feed sw enable
+Port_C
+; get I/O
+; ck for front and back switches made
+; ck both are clear
+; wait till are
+      # Diag7.asm 
+
+| LDA | Port_D | ; get I/O |
+| :--: | :--: | :--: |
+| AND | \\#03 | ; ck fuc tilt and invert |
+| BNL | DiagF a | ; if either hi then wait till clear |
+| JMP | DiagF6b | ; jump when all clear |
+| DiagF6a: |  |  |
+| LDA | \\#3 | ; fail beep when any other switch made |
+| JSR | Diag macro | ; send it |
+| JMP | DiagF6 | ; loop |
+| DiagF6b: |  |  |
+| ; mod diag6 ; inc random number seeds until feed switch down |  |  |
+| INC | Seed_1 | ; create random based on switches |
+| LDA | TMA LSB | ; get timer A also (should be unknown) |
+| STA | Seed_2 | ; save it |
+| ;end mod |  |  |
+| LDA | \\#FFh | ; turn DAC2 on to enaule feed switch |
+| STA | DAC2 | ; out |
+| LDA | Port_D | ; get I/O |
+| AND | \\#Ball_invert | ; ck if feed switch closed |
+| BEQ | DiagF6 | ; loop until switch closed |
+| LDA | \\#00 |  |
+| STA | DAC2 | ; clear feed sw enable |
+| LDA | \\#7 | ; pass beep |
+| JSR | Diag macro | ; go send motor/speech |
+| DiagF7: | ; Light sensor test |  |
+| ; mod to compensate for new light sense routine |  |  |
+| LDA | \\#00 | ; clear light timer to force new reff cycle |
+| STA | Light timer | ; set it |
+| LDA | Stat_3 | ; get system |
+| ORA | \\#Lt reff | ; make this pass a new light reff |
+| STA | Stat_3 | ; update |
+| JSR | Get_1ight | ; go get light level, establish 1st level |
+| LDA | Stat_4 | ; |
+| AND | \\#Nt_do_lt_dim | ; clear indicating change > reff level |
+| STA | Stat_4 | ; update system |
+| JSR | Get_1ight | ; go get light level sample |
+| LDA | TEMPI | ; get new count |
+| STA | Light_reff | ; update system |
+
+Diag7a:
+JSR Get_1ight ; go get again and test for lower level
+LDA Stat_4 ; get system
+AND \\#Do_1ght_dim ; check if went dimmer
+BEQ DiagF7a ; loop if no change
+LDA \\#8 ;pass beep and motor motion
+JSR Diag macro ; send it
+DiagF8:
+; Sound sensor test
+LDA \\#OO
+; clear sound timer to force new reff cycle
+STA Sound_timer ; set
+LDA Stat_1 ; get system again
+ORA \\#End_reff ; make this pass a new sound reff
+      | STA | Stat_1 | ;update |
+| :--: | :--: | :--: |
+| JER | Get_sound | ;go get light level, establish 1st level |
+| LDA | Stat_4 | ; |
+| AND | \\#Nt_do_and | ;clear indicating change > reff level |
+| STA | Stat_4 | ;update system |
+| DiagF8a: |  |  |
+| JER | Get_sound | ;go get again and test for lower level |
+| LDA | Stat_4 | ;get system |
+| ANJ | \\#Do_and | ; check if went louder |
+| BEQ | DiagF8a | ; loop if no change |
+| LDA | \\#9 | ;pass beep and motor motion |
+| JER | Diag_macro | ; send it |
+| DiagF9: | ;wait for I.R. data received |  |
+| LDX | \\#10 | ; ;Tracker change, orginal is 100 |
+| DiagF9al: |  |  |
+| LDA | \\#1 |  |
+| JER | Half_delay |  |
+| DEX |  |  |
+| BNE | DiagF9al |  |
+| JER | D_IR_test | ;go ck for data |
+| BCC | DiagF9 | ; ; loop until data receive |
+| CMP | \\#A5H | ; is it the expected data |
+| BNE | DiagF9a | ; jump if wrong data |
+| LDA | \\#1 | ; pass beep and motor motion |
+| JER | Diag_macro | ; send it |
+| JMP | DiagF10 | ; done |
+| DiagF9a: |  |  |
+| LDA | \\#3 | ; fail beep and motor motion |
+| JER | Diag_macro | ; send it |
+| DiagF10: | ; all tests complete, send to sleep mode |  |
+| LDA | \\#10 | ; |
+| JER | Half_delay | ; |
+| LDA | \\#10 | ; put furby in sleep postion |
+| JER | Diag_macro | ; send it |
+| ; Clear RAM to 00 H |  |  |
+| ; we dont clear Seed_1 or Seed_2 since they are randomized at startup. |  |  |
+| LDA | \\#00H | ; data for fill |
+| LDX | \\#D7h | ; start at ram location |
+| Clear: |  |  |
+| STA | 00,X | ; base 00, offset $x$ |
+| DEX |  | ; next ram location |
+| CPX | \\#7FH | ; check for end |
+| BNE | Clear | ; branch, not finished |
+
+Random voice selection here
+LDA \\#80h
+; get random/sequential split
+      # Diag7.asm 
+
+| STA | IN_DAT | ;save for random routine |
+| :--: | :--: | :--: |
+| LDX | \\#00 | ;make sure only gives random |
+| LDA | \\#10h | ; get number of random selections |
+| JSR | Ran_seq | ;go get random selection |
+| TAX |  |  |
+| LDA | Voice_table, X | ; get new voice |
+| STA | Rvoice | ; set new voice pitch |
+
+On power up or reset, Furby must go select a new name , . ., ahw how cute.
+
+| JSR | Random |  |
+| :-- | :-- | :-- |
+| AND | \\#1Fh | ; get 32 possible |
+| STA | Name | ; set new name pointer |
+
+
+| LDA | \\#FFh | ; insure not hungry or sick |
+| :-- | :-- | :-- |
+| STA | 'ungry_counter | ; max not hungry |
+| STA | ick_counter | ; Max not sick |
+
+; Clear training on all sensors
+
+| LDA | \\#00 |
+| :-- | :-- |
+| STA | iw.p_ID |
+| STA | Temp_ID2 |
+| STA | Tilt_learned |
+| STA | Tilt_lrn_cnt |
+| STA | Feed_learned |
+| STA | Feed_lrn_cnt |
+| STA | Light_learned |
+| STA | Light_lrn_cnt |
+| STA | Dark_learned |
+| STA | Dark_lrn_cnt |
+| STA | Front_learned |
+| STA | Front_lrn_cnt |
+| STA | Sound_learned |
+| STA | Sound_lrn_cnt |
+| STA | Wake_learned |
+| STA | Wake_lrn_cnt |
+| STA | Invert_learned |
+| STA | Invert_lrn_cnt |
+| JMP | GoToSleep | ; write ee memory YO |
+      Diag7.asm
+      Furby27.inc ; ; change twinkle egg song to one pass in macro
+
+; Lowered voice $+10$, voice +9 to voice +8
+; Wayne's mods:
+; Furby5b.inc = add voice selection table
+; Dave's
+; added feed (mouth open)
+; $170,171,173,174,175,182,183,190,191,194$
+; mod fo; ir
+; NOW 24 NAMES
+; TABLES
+; FRONT
+; PORTUNE
+; o-too-mah
+; HANGOUT
+; delay
+; FEED
+; WAKE
+; HUNGER
+; INVERT
+; BACK
+; SICK
+; LIGHT
+; DARK
+; SOUND
+; TILT
+; IR
+; FURBY SAYS
+; 435,436
+; 95,96,97
+; 439
+; Diagnostic
+; Names
+; 451,452
+; Names
+; 454
+; 455
+; 456
+; 457
+; 458
+; 459
+; 460
+; NEW EASTER EGGS
+; 468
+; 469
+; 470
+; 471
+; 472
+; 46
+
+MACRO
+$2-64$
+$65-83$
+84
+$85-101$
+102
+$103-145$
+$146-169$
+$170-201$
+202-238
+239-275
+276-292
+293-307
+308-331
+332-351
+352-392
+393-429
+430-434
+435,436
+437,438
+95,96,97
+439
+440-450
+451,452
+453
+454
+455
+456
+457
+458
+459
+460
+461
+462
+463
+464
+465
+466
+467
+; DODLE DO, ME LOVE YOU
+; SING A SONG
+; BURB ATTACK
+; furby says win sound
+; furby says lose sound
+      
+
+# ; Sensor tables 
+
+; Each sensor has 4 speech/motor tables based on age 1-4, of 16 entries each.
+; These tables are 16 bit entries, the user enters as a decimal 1-511
+; **** '00' is illegal ****
+; This number calls the MACRO tables to get specific speech and motor
+; tables. MACRO tables chain together multiple motor and speech tables.
+; The first 8 entries of speech is random selections and
+; the second 8 entries is sequential.
+; one of three voice pitc: selections, randomly load table and
+; table is randomly called on power up to select a new voice.
+; THIS gives a number added to voice 3 to create which voice will be
+      | Table | Description | Page |
+|--------|-----------------------------|-------|
+|  | **Voice_table:** | 352 |
+|  | **DB** | 353 |
+|  | **DB** | 354 |
+|  | **DB** | 352 |
+|  | **DB** | 355 |
+|  | **DB** | 356 |
+|  | **DB** | 357 |
+|  | **DB** | 358 |
+|  | **DW** | 359 |
+|  | **DW** | 360 |
+|  | **DW** | 361 |
+|  | **DW** | 362 |
+|  | **DW** | 363 |
+|  | **DW** | 364 |
+|  | **DW** | 365 |
+| **Tilt_S2:** | **DW** | 366 |
+|  | **DW** | 367 |
+|  | **DW** | 366 |
+|  | **DW** | 355 |
+|  | **DW** | 368 |
+|  | **DW** | 357 |
+|  | **DW** | 369 |
+|  | **DW** | 370 |
+|  | **DW** | 359 |
+|  | **DW** | 360 |
+|  | **DW** | 371 |
+|  | **DW** | 372 |
+|  | **DW** | 373 |
+|  | **DW** | 374 |
+|  | **DW** | 355 |
+|  | **DW** | 375 |
+| **Tilt_S3:** | **DW** | 366 |
+|  | **DW** | 355 |
+
+; **#1** AGE 1
+; **#2** AGE 1
+; **#3** AGE 1
+; **#4** AGE 1
+; **#5** AGE 1
+; **#6** AGE 1
+; **#7** AGE 1
+; **#8** AGE 1
+; **#9** AGE 1
+; **#10** AGE 1
+; **#11** AGE 1
+; **#12** AGE 1
+; **#13** AGE 1
+; **#14** AGE 1
+; **#15** AGE 1
+; **#16** AGE 1
+
+; **#1** AGE 2
+; **#2** AGE 2
+; **#3** AGE 2
+; **#4** AGE 2
+; **#5** AGE 2
+; **#6** AGE 2
+; **#7** AGE 2
+; **#8** AGE 2
+; **#9** AGE 2
+; **#10** AGE 2
+; **#11** AGE 2
+; **#12** AGE 2
+; **#13** AGE 2
+; **#14** AGE 2
+; **#15** AGE 2
+; **#16** AGE 2
+
+; **#1** AGE 3
+; **#2** AGE 3
+      
+; SNITCH FOR DO SOUND) is
+Sound_S1: DW 332
+DW 333
+DW 334
+DW 335
+DW 336
+DW 337
+DW 338
+DW 339
+DW 332
+DW 333
+DW 334
       | DW | 335 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 
-      | DO HUBGER |  |  |\n| :--: | :--: | :--: |\n|  |  |  |\n| Hunger_S1: |  |  |\n| DW | 170 | : \\#1 AGE 1 |\n| DW | 173 | : \\#2 AGE 1 |\n| DW | 176 | : \\#3 AGE 1 |\n| DW | 180 | : \\#4 AGE 1 |\n| DW | 182 | : \\#5 AGE 1 |\n| DW | 173 | : \\#6 AGE 1 |\n| DW | 165 | : \\#7 AGE 1 |\n| DW | 189 | : \\#8 AGE 1 |\n| DW | 193 | : \\#9 AGE 1 |\n| DW | 194 | : \\#10 AGE 1 |\n| DW | 173 | : \\#11 AGE 1 |\n| DW | 195 | : \\#12 AGE 1 |\n| DW | 189 | : \\#13 AGE 1 |\n| DW | 193 | : \\#14 AGE 1 |\n| DW | 194 | : \\#15 AGE 1 |\n| DW | 199 | : \\#16 AGE 1 |\n| Hunger_S2: |  |  |\n| DW | 171 | : \\#1 AGE 2 |\n| DW | 174 | : \\#2 AGE 2 |\n| DW | 177 | : \\#3 AGE 2 |\n| DW | 181 | : \\#4 AGE 2 |\n| DW | 183 | : \\#5 AGE 2 |\n| DW | 174 | : \\#6 AGE 2 |\n| DW | 186 | : \\#7 AGE 2 |\n| DW | 190 | : \\#8 AGE 2 |\n| DW | 193 | : \\#9 AGE 2 |\n| DW | 194 | : \\#10 AGE 2 |\n| DW | 174 | : \\#11 AGE 2 |\n| DW | 196 | : \\#12 AGE 2 |\n| DW | 190 | : \\#13 AGE 2 |\n| DW | 193 | : \\#14 AGE 2 |\n| DW | 194 | : \\#15 AGE 2 |\n| DW | 200 | : \\#16 AGE 2 |\n| Hunger_S3: |  |  |\n| DW | 172 | : \\#1 AGE 3 |\n| DW | 174 | : \\#2 AGE 3 |\n| DW | 178 | : \\#3 AGE 3 |\n| DW | 181 | : \\#4 AGE 3 |\n| DW | 184 | : \\#5 AGE 3 |\n| DW | 175 | : \\#6 AGE 3 |\n| DW | 187 | : \\#7 AGE 3 |\n| DW | 191 | : \\#8 AGE 3 |\n| DW | 193 | : \\#9 AGE 3 |\n| DW | 173 | : \\#10 AGE 3 |\n| DW | 175 | : \\#11 AGE 3 |\n| DW | 197 | : \\#12 AGE 3 |\n| DW | 191 | : \\#13 AGE 3 |\n| DW | 193 | : \\#14 AGE 3 |\n| DW | 193 | : \\#15 AGE 3 |\n| DW | 200 | : \\#16 AGE 3 |\n| Hunger_84: |  |  |\n| DW | 171 | : \\#1 AGE 4 |\n| DW | 175 | : \\#2 AGE 4 |
-      \n\nMACRO 65-83,SAY 62-78\nFortyes_81:\n\n| DW | 065 |\n| :-- | :-- |\n| DW | 066 |\n| DS | 067 |\n| DW | 068 |\n| DW | 069 |\n| DW | 070 |\n| DW | 071 |\n| DW | 072 |\n| DW | 073 |\n| DW | 074 |\n| DW | 075 |\n| DW | 076 |\n| DW | 077 |\n| DW | 078 |\n| DW | 079 |\n| DW | 080 |\n\nFortyes_S2:\n\n| DW | 081 |\n| :-- | :-- |\n| DW | 082 |\n| DW | 083 |\n| DW | 065 |\n| DW | 066 |\n| DW | 067 |\n| DW | 068 |\n| DW | 069 |\n| DW | 070 |\n| DW | 071 |\n| DW | 072 |\n| DW | 073 |\n| DW | 074 |\n| DW | 075 |\n| DW | 076 |\n| DW | 077 |\n\n; END PORTUNE\n; END GEORGE 07/04/98\n;
-      ;touch front sensor table\n;GEORGE 07/03/98 MACRO 2-64;SAY 1-61\nTfrnt_S1: DW 002\nDW 003\nDW 004\nDW 005\nDW 006\nDW 007\nDW 008\nDW 0 9\nDW 10\nDW 11\nDW 12\nDW 013\nDW 014\nDW 015\nDW 016\nDW 017\nTfrnt_S2: DW 018\nDW 019\nDW 020\nDW 021\nDW 022\nDW 023\nDW 024\nDW 025\nDW 026\nDW 027\nDW 028\nDW 029\nDW 030\nDW 031\nDW 032\nDW 033\n; \\#1 AGE 1\n; \\#2 AGE 1\n; \\#3 AGE 1\n; \\#4 AGE 1\n; \\#5 AGE 1\n; \\#6 AGE 1\n; \\#7 AGE 1\n; \\#8 AGE 1\n; \\#9 AGE 1\n; \\#10 AGE 1\n; \\#11 AGE 1\n; \\#12 AGE 1\n; \\#13 AGE 1\n; \\#14 AGE 1\n; \\#15 AGE 2\n; \\#16 AGE 2\n\nTfrnt_S3: DW 034\nDW 035\nDW 036\nDW 037\nDW 038\nDW 039\nDW 040\nDW 041\nDW 002\nDW 042\nDW 043\nDW 044\nDW 045\nDW 046\nDW 047\nDW 048\nTfrnt_S4: DW 049\nDW 050\nDW 051\nDW 052\nDW 053\nDW 054\nDW 055\n\n; \\#1 AGE 3\n; \\#2 AGE 3\n; \\#3 AGE 3\n; \\#4 AGE 3\n; \\#5 AGE 3\n; \\#6 AGE 3\n; \\#7 AGE 3\n; 025 ; \\#8 AGE 3\n; \\#9 AGE 3\n; \\#10 AGE 3\n; \\#11 AGE 3\n; \\#12 AGE 3\n; \\#13 AGE 3\n; \\#14 AGE 3\n; \\#15 AGE 3\n; \\#16 AGE 3\n\n; \\#1 AGE 4\n; \\#2 AGE 4\n; \\#3 AGE 4\n; \\#4 AGE 4\n; \\#5 AGE 4\n; \\#6 AGE 4\n; \\#7 AGE 4
-      | DW | 056 |\n| :-- | :-- |\n| DW | 057 |\n| DW | 058 |\n| DW | 059 |\n| DW | 060 |\n| DW | 061 |\n| DW | 062 |\n| DW | 063 |\n| DW | 064 |\n|  |  |\n\n; END GEORGE 07/03/98\n; 8 AGE 4\n; 99 AGE 4\n; 10 AGE 4\n; 11 AGE 4\n; 12 AGE 4\n; 13 AGE 4\n; 14 AGE 4\n; 15 AGE 4\n; 16 AGE 4\n\nFeed_s2:\n\n| DW | 118 |\n| :-- | :-- |\n| DW | 119 |\n| DW | 120 |\n| DW | 121 |\n| DW | 122 |\n| DW | 123 |\n| DW | 124 |\n| DW | 125 |\n| DW | 126 |\n| DW | 127 |\n| DW | 128 |\n| DW | 113 |\n| DW | 114 |\n| DW | 111 |\n| DW | 129 |\n| DW | 116 |\n\nFeed_S3:\n\n| DW | 118 |\n| :-- | :-- |\n| DW | 130 |\n| DW | 131 |\n| DW | 132 |\n| DW | 122 |\n\n; 1 AGE 1\n; 2 AGE 1\n; 3 AGE 1\n; 4 AGE 1\n; 5 AGE 1\n; 6 AGE 1\n; 7 AGE 1\n; 8 AGE 1\n; 9 AGE 1\n; 10 AGE 1\n; 11 AGE 1\n; 12 AGE 1\n; 13 AGE 1\n; 14 AGE 1\n; 15 AGE 1\n; 16 AGE 1
+      | DO HUBGER |  |  |
+| :--: | :--: | :--: |
+|  |  |  |
+| Hunger_S1: |  |  |
+| DW | 170 | : \\#1 AGE 1 |
+| DW | 173 | : \\#2 AGE 1 |
+| DW | 176 | : \\#3 AGE 1 |
+| DW | 180 | : \\#4 AGE 1 |
+| DW | 182 | : \\#5 AGE 1 |
+| DW | 173 | : \\#6 AGE 1 |
+| DW | 165 | : \\#7 AGE 1 |
+| DW | 189 | : \\#8 AGE 1 |
+| DW | 193 | : \\#9 AGE 1 |
+| DW | 194 | : \\#10 AGE 1 |
+| DW | 173 | : \\#11 AGE 1 |
+| DW | 195 | : \\#12 AGE 1 |
+| DW | 189 | : \\#13 AGE 1 |
+| DW | 193 | : \\#14 AGE 1 |
+| DW | 194 | : \\#15 AGE 1 |
+| DW | 199 | : \\#16 AGE 1 |
+| Hunger_S2: |  |  |
+| DW | 171 | : \\#1 AGE 2 |
+| DW | 174 | : \\#2 AGE 2 |
+| DW | 177 | : \\#3 AGE 2 |
+| DW | 181 | : \\#4 AGE 2 |
+| DW | 183 | : \\#5 AGE 2 |
+| DW | 174 | : \\#6 AGE 2 |
+| DW | 186 | : \\#7 AGE 2 |
+| DW | 190 | : \\#8 AGE 2 |
+| DW | 193 | : \\#9 AGE 2 |
+| DW | 194 | : \\#10 AGE 2 |
+| DW | 174 | : \\#11 AGE 2 |
+| DW | 196 | : \\#12 AGE 2 |
+| DW | 190 | : \\#13 AGE 2 |
+| DW | 193 | : \\#14 AGE 2 |
+| DW | 194 | : \\#15 AGE 2 |
+| DW | 200 | : \\#16 AGE 2 |
+| Hunger_S3: |  |  |
+| DW | 172 | : \\#1 AGE 3 |
+| DW | 174 | : \\#2 AGE 3 |
+| DW | 178 | : \\#3 AGE 3 |
+| DW | 181 | : \\#4 AGE 3 |
+| DW | 184 | : \\#5 AGE 3 |
+| DW | 175 | : \\#6 AGE 3 |
+| DW | 187 | : \\#7 AGE 3 |
+| DW | 191 | : \\#8 AGE 3 |
+| DW | 193 | : \\#9 AGE 3 |
+| DW | 173 | : \\#10 AGE 3 |
+| DW | 175 | : \\#11 AGE 3 |
+| DW | 197 | : \\#12 AGE 3 |
+| DW | 191 | : \\#13 AGE 3 |
+| DW | 193 | : \\#14 AGE 3 |
+| DW | 193 | : \\#15 AGE 3 |
+| DW | 200 | : \\#16 AGE 3 |
+| Hunger_84: |  |  |
+| DW | 171 | : \\#1 AGE 4 |
+| DW | 175 | : \\#2 AGE 4 |
+      
+
+MACRO 65-83,SAY 62-78
+Fortyes_81:
+
+| DW | 065 |
+| :-- | :-- |
+| DW | 066 |
+| DS | 067 |
+| DW | 068 |
+| DW | 069 |
+| DW | 070 |
+| DW | 071 |
+| DW | 072 |
+| DW | 073 |
+| DW | 074 |
+| DW | 075 |
+| DW | 076 |
+| DW | 077 |
+| DW | 078 |
+| DW | 079 |
+| DW | 080 |
+
+Fortyes_S2:
+
+| DW | 081 |
+| :-- | :-- |
+| DW | 082 |
+| DW | 083 |
+| DW | 065 |
+| DW | 066 |
+| DW | 067 |
+| DW | 068 |
+| DW | 069 |
+| DW | 070 |
+| DW | 071 |
+| DW | 072 |
+| DW | 073 |
+| DW | 074 |
+| DW | 075 |
+| DW | 076 |
+| DW | 077 |
+
+; END PORTUNE
+; END GEORGE 07/04/98
+;
+      ;touch front sensor table
+;GEORGE 07/03/98 MACRO 2-64;SAY 1-61
+Tfrnt_S1: DW 002
+DW 003
+DW 004
+DW 005
+DW 006
+DW 007
+DW 008
+DW 0 9
+DW 10
+DW 11
+DW 12
+DW 013
+DW 014
+DW 015
+DW 016
+DW 017
+Tfrnt_S2: DW 018
+DW 019
+DW 020
+DW 021
+DW 022
+DW 023
+DW 024
+DW 025
+DW 026
+DW 027
+DW 028
+DW 029
+DW 030
+DW 031
+DW 032
+DW 033
+; \\#1 AGE 1
+; \\#2 AGE 1
+; \\#3 AGE 1
+; \\#4 AGE 1
+; \\#5 AGE 1
+; \\#6 AGE 1
+; \\#7 AGE 1
+; \\#8 AGE 1
+; \\#9 AGE 1
+; \\#10 AGE 1
+; \\#11 AGE 1
+; \\#12 AGE 1
+; \\#13 AGE 1
+; \\#14 AGE 1
+; \\#15 AGE 2
+; \\#16 AGE 2
+
+Tfrnt_S3: DW 034
+DW 035
+DW 036
+DW 037
+DW 038
+DW 039
+DW 040
+DW 041
+DW 002
+DW 042
+DW 043
+DW 044
+DW 045
+DW 046
+DW 047
+DW 048
+Tfrnt_S4: DW 049
+DW 050
+DW 051
+DW 052
+DW 053
+DW 054
+DW 055
+
+; \\#1 AGE 3
+; \\#2 AGE 3
+; \\#3 AGE 3
+; \\#4 AGE 3
+; \\#5 AGE 3
+; \\#6 AGE 3
+; \\#7 AGE 3
+; 025 ; \\#8 AGE 3
+; \\#9 AGE 3
+; \\#10 AGE 3
+; \\#11 AGE 3
+; \\#12 AGE 3
+; \\#13 AGE 3
+; \\#14 AGE 3
+; \\#15 AGE 3
+; \\#16 AGE 3
+
+; \\#1 AGE 4
+; \\#2 AGE 4
+; \\#3 AGE 4
+; \\#4 AGE 4
+; \\#5 AGE 4
+; \\#6 AGE 4
+; \\#7 AGE 4
+      | DW | 056 |
+| :-- | :-- |
+| DW | 057 |
+| DW | 058 |
+| DW | 059 |
+| DW | 060 |
+| DW | 061 |
+| DW | 062 |
+| DW | 063 |
+| DW | 064 |
+|  |  |
+
+; END GEORGE 07/03/98
+; 8 AGE 4
+; 99 AGE 4
+; 10 AGE 4
+; 11 AGE 4
+; 12 AGE 4
+; 13 AGE 4
+; 14 AGE 4
+; 15 AGE 4
+; 16 AGE 4
+
+Feed_s2:
+
+| DW | 118 |
+| :-- | :-- |
+| DW | 119 |
+| DW | 120 |
+| DW | 121 |
+| DW | 122 |
+| DW | 123 |
+| DW | 124 |
+| DW | 125 |
+| DW | 126 |
+| DW | 127 |
+| DW | 128 |
+| DW | 113 |
+| DW | 114 |
+| DW | 111 |
+| DW | 129 |
+| DW | 116 |
+
+Feed_S3:
+
+| DW | 118 |
+| :-- | :-- |
+| DW | 130 |
+| DW | 131 |
+| DW | 132 |
+| DW | 122 |
+
+; 1 AGE 1
+; 2 AGE 1
+; 3 AGE 1
+; 4 AGE 1
+; 5 AGE 1
+; 6 AGE 1
+; 7 AGE 1
+; 8 AGE 1
+; 9 AGE 1
+; 10 AGE 1
+; 11 AGE 1
+; 12 AGE 1
+; 13 AGE 1
+; 14 AGE 1
+; 15 AGE 1
+; 16 AGE 1
       | DW | 107 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 
-      GEORGE 07/07/98\n; INVERT\n; Ball invert sensor table\n\n|  |  |  |  |  |  |\n| :--: | :--: | :--: | :--: | :--: | :--: |\n| In | DW | 202 |  | \\#1 | AGE 1 |\n|  | DW | 203 |  | \\#2 | AGE 1 |\n|  | DW | 206 |  | \\#3 | AGE 1 |\n|  | DW | 208 |  | \\#4 | AGE 1 |\n|  | DW | 212 |  | \\#5 | AGE 1 |\n|  | DW | 213 |  | \\#6 | AGE 1 |\n|  | DW | 217 |  | \\#7 | AGE 1 |\n|  | DW | 219 |  | \\#8 | AGE 1 |\n|  | DW | 220 |  | \\#9 | AGE 1 |\n|  | DW | 224 |  | \\#10 | AGE 1 |\n|  | DW | 228 |  | \\#11 | AGE 1 |\n|  | DW | 232 |  | \\#12 | AGE 1 |\n|  | DW | 234 |  | \\#13 | AGE 1 |\n|  | DW | 232 |  | \\#14 | AGE 1 |\n|  | DW | 234 |  | \\#15 | AGE 1 |\n|  | DW | 235 |  | \\#16 | AGE 1 |\n|  |  |  |  |  |  |\n| In | DW | 202 |  | \\#1 | AGE 2 |\n|  | DW | 203 |  | \\#2 | AGE 2 |\n|  | DW | 207 |  | \\#3 | AGE 2 |\n|  | DW | 209 |  | \\#4 | AGE 2 |\n|  | DW | 212 |  | \\#5 | AGE 2 |\n|  | DW | 214 |  | \\#6 | AGE 2 |\n|  | DW | 217 |  | \\#7 | AGE 2 |\n|  | DW | 219 |  | \\#8 | AGE 2 |\n|  | DW | 221 |  | \\#9 | AGE 2 |\n|  | DW | 225 |  | \\#10 | AGE 2 |\n|  | DW | 229 |  | \\#11 | AGE 2 |\n|  | DW | 232 |  | \\#12 | AGE 2 |\n|  | DW | 234 |  | \\#13 | AGE 2 |\n|  | DW | 232 |  | \\#14 | AGE 2 |\n|  | DW | 234 |  | \\#15 | AGE 2 |\n|  | DW | 236 |  | \\#16 | AGE 2 |\n|  |  |  |  |  |  |\n| In | DW | 202 |  | \\#1 | AGE 3 |\n|  | DW | 204 |  | \\#2 | AGE 3 |\n|  | DW | 207 |  | \\#3 | AGE 3 |\n|  | DW | 210 |  | \\#4 | AGE 3 |\n|  | DW | 212 |  | \\#5 | AGE 3 |\n|  | DW | 215 |  | \\#6 | AGE 3 |\n|  | DW | 218 |  | \\#7 | A4. 3 |\n|  | DW | 219 |  | \\#8 | AGE 3 |\n|  | DW | 222 |  | \\#9 | AGE 3 |\n|  | DW | 226 |  | \\#10 | AGE 3 |\n|  | DW | 230 |  | \\#11 | AGE 3 |\n|  | DW | 232 |  | \\#12 | AGE 3 |\n|  | DW | 234 |  | \\#13 | AGE 3 |\n|  | DW | 232 |  | \\#14 | AGE 3 |\n|  | DW | 234 |  | \\#15 | AGE 3 |\n|  | DW | 237 |  | \\#16 | AGE 3 |\n|  |  |  |  |  |  |\n| In | DW | 202 |  | \\#1 | AGE 4 |\n|  | DW | 205 |  | \\#2 | AGE 4 |\n|  | DW | 207 |  | \\#3 | AGE 4 |\n|  | DW | 211 |  | \\#4 | AGE 4 |
-      | $D^{21}$ | 212 |  | 5 | AGE 4 |\n| :--: | :--: | :--: | :--: | :--: |\n| D-1 | 216 |  | 6 | AGE 4 |\n| DW | 218 |  | 7 | AGE 4 |\n| DW | 219 |  | 8 | AGE 4 |\n| DW | 223 |  | 9 | AGE 4 |\n| DW | 227 |  | 10 | AGE 4 |\n| DW | 231 |  | 11 | AGE 4 |\n| DW | 233 |  | 12 | AGE 4 |\n| DW | 231 |  | 13 | AGE 4 |\n| DW | 233 |  | 14 | AGE 4 |\n| DW | 234 |  | 15 | AGE 4 |\n| DW | 238 |  | 16 | AGE 4 |\n\n;GEORGE 07/07/98\n; BACK\n; touch back sensor table\n
-      | ; DO LIGHT DARKER |  |  |  |  |\n| :--: | :--: | :--: | :--: | :--: |\n| Dark_S1: | DW | 308 |  | 1 AGE 1 |\n|  | DW | 309 |  | 2 AGE 1 |\n|  | DW | 310 |  | 3 AGE 1 |\n|  | DW | 311 |  | 4 AGE 1 |\n|  | DW | 312 |  | 5 AGE 1 |\n|  | DW | 313 |  | 6 AGE 1 |\n|  | DW | 314 |  | 7 AGE 1 |\n|  | DW | 315 |  | 8 AGE 1 |\n|  | DW | 308 |  | 9 AGE : |\n|  | DW | 309 |  | 10 AGE 1 |\n|  | DW | 310 |  | 11 AGE 1 |\n|  | DW | 311 |  | 12 AGE 1 |\n|  | DW | 312 |  | 13 AGE 1 |\n|  | DW | 313 |  | 14 AGE 1 |\n|  | DW | 314 |  | 15 AGE 1 |\n|  | DW | 315 |  | 16 AGE 1 |\n| Dark_S2: |  |  |  |  |\n|  | DW | 316 |  | 1 AGE 2 |\n|  | DW | 317 |  | 2 AGE 2 |\n|  | DW | 318 |  | 3 AGE 2 |\n|  | DW | 319 |  | 4 AGE 2 |\n|  | DW | 311 |  | 5 AGE 2 |\n|  | DW | 319 |  | 6 AGE 2 |\n|  | DW | 313 |  | 7 AGE 2 |\n|  | DW | 320 |  | 8 AGE 2 |\n|  | DW | 315 |  | 9 AGE 2 |\n|  | DW | 316 |  | 10 AGE 2 |\n|  | DW | 317 |  | 11 AGE 2 |\n|  | DW | 318 |  | 12 AGE 2 |\n|  | DW | 311 |  | 13 AGE 2 |\n|  | DW | 319 |  | 14 AGE 2 |\n|  | DW | 313 |  | 15 AGE 2 |\n|  | DW | 320 |  | 16 AGE 2 |\n|  | DW | 315 |  | 17 AGE 3 |\n| Dark_S3: | DW | 321 |  | 2 AGE 3 |\n|  | DW | 322 |  | 3 AGE 3 |\n|  | DW | 323 |  | 4 AGE 3 |\n|  | DW | 311 |  | 5 AGE 3 |\n|  | DW | 319 |  | 6 AGE 3 |\n|  | DW | 313 |  | 7 AGE 3 |\n|  | DW | 324 |  | 8 AGE 3 |\n|  | DW | 325 |  | 9 AGE 3 |\n|  | DW | 321 |  | 10 AGE 3 |\n|  | DW | 322 |  | 11 AGE 3 |\n|  | DW | 323 |  | 12 AGE 3 |\n|  | DW | 311 |  | 13 AGE 3 |\n|  | DW | 319 |  | 14 AGE 3 |\n|  | DW | 313 |  | 15 AGE 3 |\n|  | DW | 324 |  | 16 AGE 3 |\n|  | DW | 325 |  | 16 AGE 3 |\n| Dark_S4: | DW | 326 |  | 1 AGE 4 |\n|  | DW | 327 |  | 2 AGE 4 |\n|  | DW | 328 |  | 3 AGE 4 |\n|  | DW | 311 |  | 4 AGE 4 |\n|  | DW | 329 |  | 5 AGE 4 |\n|  | DW | 313 |  | 6 AGE 4 |\n|  | DW | 330 |  | 7 AGE 4 |
+      GEORGE 07/07/98
+; INVERT
+; Ball invert sensor table
+
+|  |  |  |  |  |  |
+| :--: | :--: | :--: | :--: | :--: | :--: |
+| In | DW | 202 |  | \\#1 | AGE 1 |
+|  | DW | 203 |  | \\#2 | AGE 1 |
+|  | DW | 206 |  | \\#3 | AGE 1 |
+|  | DW | 208 |  | \\#4 | AGE 1 |
+|  | DW | 212 |  | \\#5 | AGE 1 |
+|  | DW | 213 |  | \\#6 | AGE 1 |
+|  | DW | 217 |  | \\#7 | AGE 1 |
+|  | DW | 219 |  | \\#8 | AGE 1 |
+|  | DW | 220 |  | \\#9 | AGE 1 |
+|  | DW | 224 |  | \\#10 | AGE 1 |
+|  | DW | 228 |  | \\#11 | AGE 1 |
+|  | DW | 232 |  | \\#12 | AGE 1 |
+|  | DW | 234 |  | \\#13 | AGE 1 |
+|  | DW | 232 |  | \\#14 | AGE 1 |
+|  | DW | 234 |  | \\#15 | AGE 1 |
+|  | DW | 235 |  | \\#16 | AGE 1 |
+|  |  |  |  |  |  |
+| In | DW | 202 |  | \\#1 | AGE 2 |
+|  | DW | 203 |  | \\#2 | AGE 2 |
+|  | DW | 207 |  | \\#3 | AGE 2 |
+|  | DW | 209 |  | \\#4 | AGE 2 |
+|  | DW | 212 |  | \\#5 | AGE 2 |
+|  | DW | 214 |  | \\#6 | AGE 2 |
+|  | DW | 217 |  | \\#7 | AGE 2 |
+|  | DW | 219 |  | \\#8 | AGE 2 |
+|  | DW | 221 |  | \\#9 | AGE 2 |
+|  | DW | 225 |  | \\#10 | AGE 2 |
+|  | DW | 229 |  | \\#11 | AGE 2 |
+|  | DW | 232 |  | \\#12 | AGE 2 |
+|  | DW | 234 |  | \\#13 | AGE 2 |
+|  | DW | 232 |  | \\#14 | AGE 2 |
+|  | DW | 234 |  | \\#15 | AGE 2 |
+|  | DW | 236 |  | \\#16 | AGE 2 |
+|  |  |  |  |  |  |
+| In | DW | 202 |  | \\#1 | AGE 3 |
+|  | DW | 204 |  | \\#2 | AGE 3 |
+|  | DW | 207 |  | \\#3 | AGE 3 |
+|  | DW | 210 |  | \\#4 | AGE 3 |
+|  | DW | 212 |  | \\#5 | AGE 3 |
+|  | DW | 215 |  | \\#6 | AGE 3 |
+|  | DW | 218 |  | \\#7 | A4. 3 |
+|  | DW | 219 |  | \\#8 | AGE 3 |
+|  | DW | 222 |  | \\#9 | AGE 3 |
+|  | DW | 226 |  | \\#10 | AGE 3 |
+|  | DW | 230 |  | \\#11 | AGE 3 |
+|  | DW | 232 |  | \\#12 | AGE 3 |
+|  | DW | 234 |  | \\#13 | AGE 3 |
+|  | DW | 232 |  | \\#14 | AGE 3 |
+|  | DW | 234 |  | \\#15 | AGE 3 |
+|  | DW | 237 |  | \\#16 | AGE 3 |
+|  |  |  |  |  |  |
+| In | DW | 202 |  | \\#1 | AGE 4 |
+|  | DW | 205 |  | \\#2 | AGE 4 |
+|  | DW | 207 |  | \\#3 | AGE 4 |
+|  | DW | 211 |  | \\#4 | AGE 4 |
+      | $D^{21}$ | 212 |  | 5 | AGE 4 |
+| :--: | :--: | :--: | :--: | :--: |
+| D-1 | 216 |  | 6 | AGE 4 |
+| DW | 218 |  | 7 | AGE 4 |
+| DW | 219 |  | 8 | AGE 4 |
+| DW | 223 |  | 9 | AGE 4 |
+| DW | 227 |  | 10 | AGE 4 |
+| DW | 231 |  | 11 | AGE 4 |
+| DW | 233 |  | 12 | AGE 4 |
+| DW | 231 |  | 13 | AGE 4 |
+| DW | 233 |  | 14 | AGE 4 |
+| DW | 234 |  | 15 | AGE 4 |
+| DW | 238 |  | 16 | AGE 4 |
+
+;GEORGE 07/07/98
+; BACK
+; touch back sensor table
+
+      | ; DO LIGHT DARKER |  |  |  |  |
+| :--: | :--: | :--: | :--: | :--: |
+| Dark_S1: | DW | 308 |  | 1 AGE 1 |
+|  | DW | 309 |  | 2 AGE 1 |
+|  | DW | 310 |  | 3 AGE 1 |
+|  | DW | 311 |  | 4 AGE 1 |
+|  | DW | 312 |  | 5 AGE 1 |
+|  | DW | 313 |  | 6 AGE 1 |
+|  | DW | 314 |  | 7 AGE 1 |
+|  | DW | 315 |  | 8 AGE 1 |
+|  | DW | 308 |  | 9 AGE : |
+|  | DW | 309 |  | 10 AGE 1 |
+|  | DW | 310 |  | 11 AGE 1 |
+|  | DW | 311 |  | 12 AGE 1 |
+|  | DW | 312 |  | 13 AGE 1 |
+|  | DW | 313 |  | 14 AGE 1 |
+|  | DW | 314 |  | 15 AGE 1 |
+|  | DW | 315 |  | 16 AGE 1 |
+| Dark_S2: |  |  |  |  |
+|  | DW | 316 |  | 1 AGE 2 |
+|  | DW | 317 |  | 2 AGE 2 |
+|  | DW | 318 |  | 3 AGE 2 |
+|  | DW | 319 |  | 4 AGE 2 |
+|  | DW | 311 |  | 5 AGE 2 |
+|  | DW | 319 |  | 6 AGE 2 |
+|  | DW | 313 |  | 7 AGE 2 |
+|  | DW | 320 |  | 8 AGE 2 |
+|  | DW | 315 |  | 9 AGE 2 |
+|  | DW | 316 |  | 10 AGE 2 |
+|  | DW | 317 |  | 11 AGE 2 |
+|  | DW | 318 |  | 12 AGE 2 |
+|  | DW | 311 |  | 13 AGE 2 |
+|  | DW | 319 |  | 14 AGE 2 |
+|  | DW | 313 |  | 15 AGE 2 |
+|  | DW | 320 |  | 16 AGE 2 |
+|  | DW | 315 |  | 17 AGE 3 |
+| Dark_S3: | DW | 321 |  | 2 AGE 3 |
+|  | DW | 322 |  | 3 AGE 3 |
+|  | DW | 323 |  | 4 AGE 3 |
+|  | DW | 311 |  | 5 AGE 3 |
+|  | DW | 319 |  | 6 AGE 3 |
+|  | DW | 313 |  | 7 AGE 3 |
+|  | DW | 324 |  | 8 AGE 3 |
+|  | DW | 325 |  | 9 AGE 3 |
+|  | DW | 321 |  | 10 AGE 3 |
+|  | DW | 322 |  | 11 AGE 3 |
+|  | DW | 323 |  | 12 AGE 3 |
+|  | DW | 311 |  | 13 AGE 3 |
+|  | DW | 319 |  | 14 AGE 3 |
+|  | DW | 313 |  | 15 AGE 3 |
+|  | DW | 324 |  | 16 AGE 3 |
+|  | DW | 325 |  | 16 AGE 3 |
+| Dark_S4: | DW | 326 |  | 1 AGE 4 |
+|  | DW | 327 |  | 2 AGE 4 |
+|  | DW | 328 |  | 3 AGE 4 |
+|  | DW | 311 |  | 4 AGE 4 |
+|  | DW | 329 |  | 5 AGE 4 |
+|  | DW | 313 |  | 6 AGE 4 |
+|  | DW | 330 |  | 7 AGE 4 |
       | DW | 000 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 
-      Macro_grp2: : points into macro tables\n\nDW Tbl2_Macro128\nDW Tbl2_Macro129, Tbl2_Macro130, Tbl2_Macro131, Tbl2_Macro132, Tbl2_Macro 133\nDW Tbl2_Macro134, Tbl2_Macro135, Tbl2_Macro136, Tbl2_Macro137, Tbl2_Macro 138\nDW Tbl2_Macro139, Tbl2_Macro140, Tbl2_Macro141, Tbl2_Macro142, Tbl2_Macro 143\nDW Tbl2_Macro144, Tbl2_Macro145, Tbl2_Macro146, Tbl2_Macro147, Tbl2_Macro 148\nDW Tbl2_Macro149, Tbl2_Macro150, Tbl2_Macro151, Tbl2_Macro152, Tbl2_Macro 153\nDW Tbl2_Macro154, Tbl2_Macro155, Tbl2_Macro156, Tbl2_Macro157, Tbl2_Macro 158\nDW Tbl2_Macro159, Tbl2_Macro160, Tbl2_Macro161, Tbl2_Macro162, Tbl2_Macro 163\nDW Tbl2_Macro164, Tbl2_Macro165, Tbl2_Macro166, Tbl2_Macro167, Tbl2_Macro 168\nDW Tbl2_Macro169, Tbl2_Macro170, Tbl2_Macro171, Tbl2_Macro172, Tbl2_Macro 173\nDW Tbl2_Macro174, Tbl2_Macro175, Tbl2_Macro176, Tbl2_Macro177, Tbl2_Macro 178\nDW Tbl2_Macro179, Tbl2_Macro180, Tbl2_Macro181, Tbl2_Macro182, Tbl2_Macro 183\nDW Tbl2_Macro184, Tbl2_Macro185, Tbl2_Macro186, Tbl2_Macro187, Tbl2_Macro 188\nDW Tbl2_Macro189, Tbl2_Macro190, Tbl2_Macro191, Tbl2_Macro192, Tbl2_Macro 193\nDW Tbl2_Macro194, Tbl2_Macro195, Tbl2_Macro196, Tbl2_Macro197, Tbl2_Macro 198\nDW Tbl2_Macro199, Tbl2_Macro200, Tbl2_Macro201, Tbl2_Macro202, Tbl2_Macro 203\nDW Tbl2_Macro204, Tbl2_Macro205, Tbl2_Macro206, Tbl2_Macro207, Tbl2_Macro 208\nDW Tbl2_Macro209, Tbl2_Macro210, Tbl2_Macro211, Tbl2_Macro212, Tbl2_Macro 213\nDW Tbl2_Macro214, Tbl2_Macro215, Tbl2_Macro216, Tbl2_Macro217, Tbl2_Macro 218\nDW Tbl2_Macro219, Tbl2_Macro220, Tbl2_Macro221, Tbl2_Macro222, Tbl2_Macro 223\nDW Tbl2_Macro224, Tbl2_Macro225, Tbl2_Macro226, Tbl2_Macro227, Tbl2_Macro 228\nDW Tbl2_Macro229, Tbl2_Macro230, Tbl2_Macro231, Tbl2_Macro232, Tbl2_Macro 233\nDW Tbl2_Macro234, Tbl2_Macro235, Tbl2_Macro236, Tbl2_Macro237, Tbl2_Macro 238\nDW Tbl2_Macro239, Tbl2_Macro240, Tbl2_Macro241, Tbl2_Macro242, Tbl2_Macro 243\nDW Tbl2_Macro244, Tbl2_Macro245, Tbl2_Macro246, Tbl2_Macro247, Tbl2_Macro 248\nDW Tbl2_Macro249, Tbl2_Macro250, Tbl2_Macro251, Tbl2_Macro252, Tbl2_Macro 253\nDW Tbl2_Macro254, Tbl2_Macro255\nMacro_grp3: ; points into macro tables
-      DW\nDW\nDW\n261\nDW\n266\nDW\n271\nDW\n276\nDW\n281\nDW\n286\nDW\n291\nDW\n296\nDW\n301\nDW\n306\nDW\n311\nDW\n316\nDW\n321\nDW\n326\nDW\n331\nDW\n336\nDW\n341\nDW\n346\nDW\n351\nDW\n356\nDW\n361\nDW\n366\nDW\n371\nDW\n376\nDW\n381\nDW\nMacro_grp4: ; points into macro tables\nDW Tbl4_Macro384\nDW Tbl4_Macro385, Tbl4_Macro386, Tbl4_Macro387, Tbl4_Macro388, Tbl4_Macro\n389\nDW Tbl4_Macro390, Tbl4_Macro391, Tbl4_Macro392, Tbl4_Macro393, Tbl4_Macro
-      ; The first group of numbers is the speech/motor table value.\n; The last line is the terminator of 00 . ( 00 so 'DB' takes 1 less byte)\n; ex: $1=$ will call the saysent 1 and the motor table 1.\nTb11_Macro0:\n\n; (MIDDLE)\n;\n; put sounds and motions together\n; DW 5 (first sound and motion, in this case \"5\")\n; DW 3 (next sound and motion, in this case \"3\")\n; DW 00 ( end of sequence)\nTb11_Macro1:\n\n; GECROE 07/03/98\nTb11_Macro2:\n\n; ; FRONT SEQ1AGE1\n\nTb11_Macro4:\n\nTb11_Macro5:\n\n; ; FRONT SEQ4AGE1\n
-      ;END GEORGE 07/03/98\n; GEORGE 07/04/98\n;START FORTUNE\nTbl1_Macro65:\nDW 062\nDW 051 ; 72 ;FORTUNE 1\nDW 00 ; end\nTbl1_Macro66:\nDW 003\nDW 063 ;FORTUNE 2\nDW 003\nDW 00 ; end\nTbl1_Macro67:\nDW 090 ; 94\nDW 064\nDW 063 ;FORTUNE 3\nDW 00 ; end\nTbl1_Macro68:\nDW 065 ;FORTUNE 4\nDW 063\nDW 00 ; end\nTbl1_Macro69:\nDW 067 ; MODIFIED FOR NAME DMH\n; DW 068\nDW 053\nDW 066 ;FORTUNE 5\nDW 063\nDW 00 ; end\nTbl1_Macro70:\nDW 069 ;FORTUNE 6\nDW 070\nDW 00 ; end\nTbl1_Macro71:\nDW 067\nDW 068\nDW 071\nDW 073\nDW 072\nDW 00 ; end\nTbl1_Macro72:\nDW 074 ;FORTUNE 8\nDW 00 ; end\nTbl1_Macro73:\nDW 074 ;FORTUNE 9\nDW 063\nDW 00 ; end\nTbl1_Macro74:
-      ; END INVERT\n; GEORGE 07/07/98\n; BACK\nTbl2_Macro239: ;BACKSG ;SGDONF\nDW 193\nDW 193\nDW 00 ; end\n;\nTbl2_Macro240: ;SGDONE\nDW 193\nDW 194\nDW 195\nDW 00 ; end\n;\nTbl2_Macro241: ;SGDONE\nDW 193\nDW 196\nDW 195\nDW 00 ; end\n;\nTbl2_Macro242: ;SGDONE\nDW 193\nDW 194\nDW 197\nDW 00 ; end\n;\nTbl2_Macro243: ;SGDONE\nDW 193\nDW 196\nDW 197\nDW 00 ; end\n;\nTbl2_Macro244: ;SGDONE\nDW 198\nDW 199\nDW 200\nDW 201\nDW 00 ; end\n;\nTbl2_Macro245: ;SGDONE\nDW 198\nDW 199\nDW 202\nDW 201\nDW 00 ; end\n;\nTbl2_Macro246: ;SGDONE\nDW 198\nDW 199\nDW 200\nDW 184 ; 148 ; 212\nDW 00 ; end\n;\nTbl2_Macro247: ;SGDONE\nDW 198\nDW 199\nDW 202\nDW 184 ; 148 ; 212\nDW 00 ; end
-      ```\n; ; ; ; ; ; SAYSENT pointer tables (128 max per table ---- 255 tables max)\nSpch_grp1:\n    DW Tbl1_say000\n    DW\nTbl1_say001,Tbl1_say002,Tbl1_say003,Tbl1_say004,Tbl1_say005\n    DW\nTbl1_say006,Tbl1_say007,Tbl1_say008,Tbl1_say009,Tbl1_say010\n    DW\nTbl1_say011,Tbl1_say012,Tbl1_say013,Tbl1_say014,Tbl1_say015\n    DW\nTbl1_say016,Tbl1_say017,Tbl1_say018,Tbl1_say015,Tbl1_say020\n    DW\nTbl1_say021,Tbl1_say022,Tbl1_say023,Tbl1_say024,Tbl1_say025\n    DW\nTbl1_say026,Tbl1_say027,Tbl1_say028,Tbl1_say029,Tbl1_say030\n    DW\nTbl1_say031,Tbl1_say032,Tbl1_say033,Tbl1_say034,Tbl1_say035\n    DW\nTbl1_say036,Tbl1_say037,Tbl1_say038,Tbl1_say039,Tbl1_say040\n    DW\nTbl1_say041,Tbl1_say042,Tbl1_say043,Tbl1_say044,Tbl1_say045\n    DW\nTbl1_say046,Tbl1_say047,Tbl1_say048,Tbl1_say049,Tbl1_say050\n    DW\nTbl1_say051,Tbl1_say052,Tbl1_say053,Tbl1_say054,Tbl1_say055\n    DW\nTbl1_say056,Tbl1_say .7,Tbl1_say058,Tbl1_say059,Tbl1_say060\n    DW\nTbl1_say061,Tbl1_sa,062,Tbl1_say063,T _say064,Tbl1_say065\n    DW\nTbl1_say066,Tbl1_say067,Tbl1_say068,Tbl1_say069,Tbl1_say070\n    DW\nTbl1_say071,Tbl1_say072,Tbl1_say073,Tbl1_say074,Tbl1_say075\n    DW\nTbl1_say076,Tbl1_say077,Tbl1_say078,Tbl1_say079,Tbl1_say080\n    DW\nTbl1_say081,Tbl1_say082,Tbl1_say083,Tbl1_say084,Tbl1_say085\n    DW\nTbl1_say086,Tbl1_say087,Tbl1_say088,Tbl1_say089,Tbl1_say090\n    DW\nTbl1_say091,Tbl1_say092,Tbl1_say093,Tbl1_say094,Tbl1_say095\n    DW Tbl1_say096,Tbl1_say097,Tbl1_say098,Tbl1_say099\n    DW\nTbl1_say100,Tbl1_say101,Tbl1_say102,Tbl1_say103,Tbl1_say104\n    DW Tbl1_say105,Tbl1_say106,Tbl1_say107,Tbl1_say108,Tbl1_say109\n    DW Tbl1_say110,Tbl1_say111,Tbl1_say112,Tbl1_say113,Tbl1_say114\n    DW Tbl1_say115,Tbl1_say116,Tbl1_say117,Tbl1_say118,Tbl1_say119\n    DW Tbl1_say120,Tbl1_say121,Tbl1_say122,Tbl1_say123,Tbl1_say124\n    DW Tbl1_say125,Tbl1_say126,Tbl1_say127\n```
-      | DW | Tb12_say128 |\n| :--: | :--: |\n| DW | Tb12_say129, Tb12_say130, Tb12_say131, Tb12_say132, Tb12_say133 |\n| DW | Tb12_say134, Tb12_say135, Tb12_say136, Tb12_say137, Tb12_say138 |\n| DW | Tb12_say139, Tb12_say140, Tb12_say141, Tb12_say142, Tb12_say143 |\n| DW | Tb12_say144, Tb12_say145, Tb12_say146, Tb12_say147, Tb12_say148 |\n| DW | Tb12_say149, Tb12_say150, Tb12_say151, Tb12_say152, Tb12_say153 |\n| DW | Tb12_say154, Tb12_say155, Tb12_say156, Tb12_say157, Tb12_say158 |\n| DW | Tb12_say159, Tb12_say160, Tb12_say161, Tb12_say'62, Tb12_say163 |\n| DW | Tb12_say164, Tb12_say165, Tb12_say166, Tb12_say 67, Tb12_say168 |\n| DW | Tb12_say169, Tb12_say170, Tb12_say171, Tb12_say172, Tb12_say173 |\n| DW | Tb12_say174, Tb12_say175, Tb12_say176, Tb12_say177, Tb12_say178 |\n| DW | Tb12_say179, Tb12_say180, Tb12_say181, Tb12_say182, Tb12_say183 |\n| DW | Tb12_say184, Tb12_say185, Tb12_say186, Tb12_say187, Tb12_say188 |\n| DW | Tb12_say189, Tb12_say190, Tb12_say191, Tb12_say192, Tb12_say193 |\n| DW | Tb12_say194, Tb12_say195, Tb12_say196, Tb12_say197, Tb12_say198 |\n| DW | Tb12_say199, Tb12_say200, Tb12_say201, Tb12_say202, Tb12_say203 |\n| DW | Tb12_say204, Tb12_say205, Tb12_say206, Tb12_say207, Tb12_say208 |\n| DW | Tb12_say209, Tb12_say210, Tb12_say211, Tb12_say212, Tb12_say213 |\n| DW | Tb12_say214, Tb12_say215, Tb12_say216, Tb12_say217, Tb12_say218 |\n| DW | Tb12_say219, Tb12_say220, Tb12_say221, Tb12_say222, Tb12_say223 |\n| DW | Tb12_say224, Tb12_say225, Tb12_say226, Tb12_say227, Tb12_say228 |\n| DW | Tb12_say229, Tb12_say230, Tb12_say231, Tb12_say232, Tb12_say233 |\n| DW | Tb12_say234, Tb12_say235, Tb12_say236, Tb12_say237, Tb12_say238 |\n| DW | Tb12_say239, Tb12_say240, Tb12_say241, Tb12_say242, Tb12_say243 |\n| DW | Tb12_say244, Tb12_say245, Tb12_say246, Tb12_say247, Tb12_say248 |\n| DW | Tb12_say249, Tb12_say250, Tb12_say251, Tb12_say252, Tb12_say253 |\n| DW | Tb12_say254, Tb12_say255 |\n\n\n| DW | Tb13_say256 |\n| :--: | :--: |\n| DW | Tb13_say257, Tb13_say258, Tb13_say259, Tb13_say260, Tb13_say261 |\n| DW | Tb13_say262, Tb13_say263, Tb13_say264, Tb13_say265, Tb13_say266 |\n| DW | Tb13_say267, Tb13_say268, Tb13_say269, Tb13_say270, Tb13_say271 |\n| Dv | Tb13_say272, Tb13_say273, Tb13_say274, Tb13_say275, Tb13_say276 |\n| DW | Tb13_say277, Tb13_say278, Tb13_say279, Tb13_say280, Tb13 -ay281 |\n| DW | Tb13_say282, Tb13_say283, Tb13_say284, Tb13_say285, Tb13 -ay286 |\n| DW | Tb13_say287, Tb13_say288, Tb13_say289, Tb13_say290, Tb13_say291 |\n| DW | Tb13_say292, Tb13_say293, Tb13_say294, Tb13_say295, Tb13_say296 |\n| DW | Tb13_say297, Tb13_say298, Tb13_say299, Tb13_say300, Tb13_say301 |\n| DW | Tb13_say302, Tb13_say303, Tb13_say304, Tb13_say305, Tb13_say306 |\n| DW | Tb13_say307, Tb13_say308, Tb13_say309, Tb13_say310, Tb13_say311 |\n| DW | Tb13_say312, Tb13_say313, Tb13_say314, Tb13_say315, Tb13_say316 |\n| DW | Tb13_say317, Tb13_say318, Tb13_say319, Tb13_say320, Tb13_say321 |\n| DW | Tb13_say322, Tb13_say323, Tb13_say324, Tb13_say325, Tb13_say326 |\n| DW | Tb13_say327, Tb13_say328, Tb13 say329, Tb13_say330, Tb13_say331 |\n| DW | Tb13_say332, Tb13_say333, Tb1 -say334, Tb13_say335, Tb13_say336 |\n| DW | Tb13_say337, Tb13_say338, Tb1 -say339, Tb13_say340, Tb13_say341 |\n| DW | Tb13_say342, Tb13_say343, Tb1 -say344, Tb13_say345, Tb13_say346 |\n| DW | Tb13_say347, Tb13_say348, Tb13_say349, Tb13_say350, Tb13_say351 |\n| DW | Tb13_say352, Tb13_say353, Tb13_say354, Tb13_say355, Tb13_say356 |\n| DW | Tb13_say357, Tb13_say358, Tb13_say359, Tb13_say360, Tb13_say361 |\n| DW | Tb13_say362, Tb13_say363, Tb13_say364, Tb13_say365, Tb13_say366 |\n| DW | Tb13_say367, Tb13_say368, Tb13_say369, Tb13_say370, Tb13_say371 |\n| DW | Tb13_say372, Tb13_say373, Tb13_say374, Tb13_say375, Tb13_say376 |\n| DW | Tb13_say377, Tb13_say378, Tb13_say379, Tb13_say380, Tb13_say381 |
-      \n; ALL SPEECH SAYSENT START HERE ; ; ; ; ; ; ; ;\n; ; Saysent grnups for Tbl 1\n; The first line of each group is the speech speed command.\n; This is a number from 40 - 55 where 46 is stand d speed\n;\n; The next line is PITCH control which works as follows:\n; Actual numeric value for TI pitch control\n; bit 7 set = subtract value from current course value\n; clr = add value to current course value\n; bit 6 set = select music pitch table\n; clr = select normal speech pitch table\n; bit 0-5 value to change course value (no change $=0$ )
-      ```\n8Fh ; hi voice (8f is very squeeeeke) (8F=143)\n81h ; one step higher than normal use range 81-8F (129-143)\n00 ; normal voice\n01 ; one step lower than normal\n2fh ; 10 voice ( very low) use range 01-7F (01-47)\n```\n\nA math routine in 'say_0' converts the value for + or -\nif $<80$ then subtracts from 80 to get the minus version of 90\nie, if number is 70 then TI gets 10 (which is -10 )\nIf number is 80 or $>80$ then get sent literal as positive.\nNOTE: MAX POSITIVE IS 8B\nMAX NEGATIVE is 2F ( 80h - 2Fh or 51h)\n8Bh is hi voice (8f is very squeeeeke)\n2Fh 10 voice ( very low)\nWhen entering changes, 'Voice' holds the current pitch for Furby and it is modified by adding or subtracting a pitch change : : :\nex: Voice +8 increases the pitch from the current voice by 8\nex: Voice-10 decreases the pitch from the current voice by 10\nThe next group of entries are the speech words.\nThe last line is the terminator of 'FF'\n(BOTTOM)\n1 is very fast\n46 is average\n255 is very slow\nDB 46 (speed of speech)\nDB 123 (do sound 123)\nDB 43 (do sound 43)\nDB FFH\nFITCH PROGRAMKING RANGE:\nVoice +8 (highest)\nVoice-20 (lowest)\nTbl1_say060:\nDB 46\nDB Voice\nDB 163\nDB FFH\n; GEORGE 07/03/98\nTbl1_say001:\n; dON START SEQ1 AGE1\nDB\n$46 ;$ sp sech speed\n$169,162,162,164,149$; DONE 1FRONT SEQ1\nDB FFH ; end\nTbl1_say002:
-      DB 52 : speech speed\nDB Voice+8 ; system pitch setting\nDB $117,59 \\quad$; DONE 1FRONT SEQ2 age1\nDB FFH ; end\nTbl1_say003:\nDB 46\n; speech speed\nDB Voice-4 ; system pitch setting\nDB $118 \\quad$; 1 front seq3 - seq4-part1-SEQ7PART2\nDB FFH ; end\nTbl1_say004:\nDB 46\n; speech speed\nDB Voice ; system pitch setting\nDB $62,22,85 \\quad$; 1 front seq3 part2\nDB FFH ; end\nTbl1_say005:\nDB 50\n; speech speed\nDB Voice+8 ; system pitch setting\nDB $58,39 \\quad$; 1 front seq4 part 2\nDB FFH ; end\nTbl1_say006:\nDB 46\n; speech speed\nDB Voice ; pitch control\nDB $162,162,99,117$; seq5 age1 front part of seq6\nDB FFH ; end\nTbl1_say007:\nDB 55\n; speech speed\nDB Voice: 8 ; system pitch setting\nDB $156 \\quad$; seq6 age1 front back part\nDB FFH ; en: 4\nTbl1_say008:\nDB 46\n; speech speed\nDB Voice ; pitch control\nDB $162,162,99,10,39 \\quad$; SEQ7 FRONT AGE1 ADD SAY 003\nDB FFH ; end\nTbl1_say009:\nDB 46\n; speech speed\nDB Voice ; system pitch setting\nDB $99,99,145 \\quad$; SEQ8 FRONT AGE1\nDB FFH ; end\nTbl1_say010:\nDB 46\n; speech speed\nDB Voice ; system pitch setting\nDB $98 \\quad$; seq9 FRONT AGE1\nDB FFH ; end\nTbl1_say011:\nDB 30\n; speech speed\nDB Voice+8 ; system pitch setting\nDB $96,165,165,165,129,149$; seq10 FRONT AGE1 ADD SAY20\nDB FFH ; end\nTbl1_say012:
-      ```\nTb11_say078:\n    DB 50\n    DB Voice+7\n    DB 49\n    DB FFH ; end\n;END SAY FORTUNE\n;END GEORGE 07/04/98\n;START HANGOUT\n;GEORGE 07/04/98\nTb11_say079:\n    DB 56\n    DB Voice+8\n    DB 110\nDUM) AGE1\n    DB FFH ; end\nTb11_say080:\n    DB 60\n    DB Voice+8\n    DB 109\n    DB FFH ; end\nTb11_say081:\n    DB 56\n    DB Voice+8\n    DB Voice+8\n    DB 116\nDB FFH ; end\nTb11_say082:\n    DB 46\n    DB Voice+7\n    DB 113\n    DB FFH ; end\nTb11_say083:\n    DB 53\n    DB Voice+5\n    DB 162,114,162,114\n    DB FFH ; end\nTb11_say084:\n    DB 46\n    DB Voice+8\n    DB 115\n    DB FFH ; end\nTb11_say085:\n    DB 60\n    DB Voice+5\n    DB 126,163 ;SEQ4 HANGING (LA LA)\n    DB FFH ; end\nTb11_say086:\n    DB 56\n    DB Voice+5\n    DB 127\n    DB FFH ; end\n```
-      Tbl1_say113:\nDB 58 :speech speed\nDB Voice+7 : system pitch setting\nDB 23 ;SEQ2 FEED AGE1 (DO MOH)\nDB FFH ; end\nTbl1_say114:\nDB $\\quad 58 \\quad$ speech speed\nDB Voice : system pitch setting\nDB 79 ; TOH-DYE\nDB FFH ; end\nTbl1_say115:\nDB 46 :speech speed\nDB Voice : system pitch setting\nDB 97 ;BURF\nDB FFH ; end\nTbl1_say116:\nDB 46 :speech speed\nDB Voice : system pitch setting\nDB 140 ;SIGH\nDB FFH ; end\nTbl1_say117:\nDB 46 :speech speed\nDB Voice : system pitch setting\nDB 10 ;BOO\nDB FFH ; end\nTbl1_say118:\nDB 46 :speech speed\nDB Voice : system pitch setting\nDB 85 ;WAH\nDB FFH end\nTbl1_say119:\nDB $\\quad 60 \\quad:$ speech speed\nDB Voice+8 : system pitch setting\nDB 80 ;TOH-LOO\nDB FFH ; end\nTbl1_say120:\nDB 46 :speech speed\nDB Voice+8 : system pitch setting ;A TAY\nDB 7\nDB FFH ; end\nTbl1_say121:\nDB 46 :speech speed\nDB Voice : system pitch setting\nDB 33 ;SEQ1 FEED AGE2 HUNGRY\nDB FFH ; end\n143 SAME AS TBL1_SAY072\n; Tbl2_say143:\nDB 46 ; speech speed\nDB Voice : system pitch setting\nDB 28\n; :SEQ2 FEED AGE3 (GOOD)\nDB FFH ; end
-      DB 46 ; speech speed\nDB Voice ; system pitch setting\nDB $52,48,81,152$;S7 A2 TILT (with say/m5) js\nDB FFH ; end\nTb13_say328:\nDB 46 ; speech speed\nDB Voice ; system pitch setting\nDB 155\n; S8 A2 TILT (with say/m5) js\nDB FFH ; end\nTb13_say329:\nDB 46 ; speech speed\nDB Voice ; system pitch setting\nDB $52,57 ;$ S11 A2 TILT (with say/m2) js\nDB FFH ; end\nTb13_say330:\nDB 46 ; speech speed\nDB Voice ; system pitch setting\nDB $158,60,80 ;$ S12 A2 TILT js\nDB FFH ; end\nTb13_say331:\nDB 46 ; speech speed\nDB Voice ; system pitch setting\nDB $163,156 ;$ S13 A2 TILT (with say/m5) js\nDB FFH ; end\nTb13_say332:\nDB 46 ; speech speed\nDB Voice ; system pitch setting\nDB $8,22,85$;S14 A2 TILT js\nDB FFH ; end\nTb13_say333:\nDB 46 ; speech speed\nDB Voice ; pitch control\nDB $154,118,163,145,165,162,118$;S16 A2/S14 A3/S14 A4\nTILT js\nDB FFH ; end\nTb13_say334:\nDB 46 ; speech speed\nDB Voice ; system pitch setting\nDB 159\n; S3 A3 TILT js\nDB FFH ; end\nTb13_say335:\nDB 46 ; speech speed\nDB Voice ; pitch control\nDB 83,1\n; S4 A3/S4 A4 TILT (with say/m26) js\nDB FFH ; end\nTb13_say336:\nDB 46 ; speech speed\nDB Voice ; system pitch setting\nDB $155,52,62,85$;S5 A3 TILT js\nDB FFH ; end
-      DIALOGUE\n
-      ```\nTb14_say438:\nTb14_say439:\nTb14_say440:\nTb14_say441:\nTb14_say442:\nTb14_say443:\nTb14_say444:\nTb14_say445:\nTb14_say446:\nTb14_say447:\nTb14_say448:\nTb14_say449:\nTb14_say450:\nTb14_say451:\nTb14_say452:\nTb14_say453:\nTb14_say454:\nTb14_say455:\nTb14_say456:\nTb14_say457:\nTb14_say458:\nTb14_say459:\nTb14_say460:\nTb14_say461:\nTb14_say462:\nTb14_say463:\nTb14_say464:\nTb14_say465:\nTb14_say466:\nTb14_say467:\n```
-      ```\nTbl4_say468:\nTbl4_say469:\nTbl4_say470:\nTbl4_say471:\nTbl4_say472:\nTbl4_say473:\nTbl4_say474:\nTbl4_say475:\nTbl4_say476:\nTbl4_say477:\nTbl4_say478:\nTbl4_say479:\nTbl4_say480:\nTbl4_say481:\nTbl4_say482:\nTbl4_say483:\nTbl4_say484:\nTbl4_say485:\nTbl4_say486:\nTbl4_say487:\nTbl4_say488:\nTbl4_say489:\nTbl4_say490:\nTbl4_say491:\nTbl4_say492:\nTbl4_say493:\nTbl4_say494:\nTbl4_say495:\nTbl4_say496:\nTbl4_say497:\n```
-      ```\nTbl4_say498:\nTbl4_say499:\nTbl4_say500:\nTbl4_say501:\nTbl4_say502:\nTbl4_say503:\nTbl4_say504:\nTbl4_say505:\nTbl4_say506:\nTbl4_say507:\nTbl4_say508:\nTbl4_say509:\nTbl4_say510:\nTbl4_say511:\n; ON POWER UP, UNTIL WAKE-UP TABLE INSTALLED (Dave)\n    DB 46 ; speech speed\n        DB Voice\n        DB 165\n        DB FFH ; end\n;\n; **************************************************************\n; Motor tables\n; Offsett pointer :\nMotor_grpl:\nDW Tbl1_M000\nDW Tbl1_M001,Tbl1_M002,Tbl1_M003,Tbl1_M004,Tbl1_M005\nDW Tbl1_M006,Tbl1_M007,Tbl1_M008,Tbl1_M009,Tbl1_M010\nDW Tbl1_M011, Tbl1_M012,Tbl1_M013, Tbl1_M014, Tbl1_M015\nDW Tbl1_M016,Tbl1_M017,Tbl1_M018,Tbl1_M019,Tbl1_M020\nDW Tbl1_M021, Tbl1_M022,Tbl1_M023,Tbl1_M024,Tbl1_M025\nDW Tbl1_M026,Tbl1_M027,Tbl1_M028,Tbl1_M029,Tbl1_M030\nDW Tbl1_M031,Tbl1_M032,Tbl1_M033,Tbl1_M034,Tbl1_M035\nDW Tbl1_M036,Tbl1_M037,Tbl1_M038,Tbl1_M039,Tbl1_M040\nDW Tbl1_M041, Tbl1_M042,Tbl1_M043,Tbl1_M044,Tbl1_M045\nDW Tbl1_M046,Tbl1_M047,Tbl1_M048,Tbl1_M049,Tbl1_M050\nDW Tbl1_M051,Tbl1_M052,Tbl1_M053,Tbl1_M054,Tbl1_M055\nDW Tbl1_M056,Tbl1_M057,Tbl1_M058,Tbl1_M059,Tbl1_M060\n```
-      ; 'FF' or '255' is the end of table command.\n; TABLES WITH ENDING STEP NOT WITHIN REQUIRED RANGE (10-20), (132,136)\n;M94,M127,M131,M139,M140,M143,M146\n; WITH DUPLICATE STEPS PUT CONSECUTIVELY\n;M187,M193,M219,M220,M229,M237,M241,M242\n;M250,M310,M321,M369\nTb11_M000:\nDB 50 ; motor delay between steps\nDB $10,135$\nDB FFH ; end\n; GEORGE 07/03/98\nTb11_M001:\n$\\begin{array}{ll}\\text { DB } & 1 \\\\ \\text { DB } & 190,133\\end{array}$\nDB FFH\nTb11_M002:\nDB\n1\nDB\n190,145,138,120,145,133,147,133\n$\\begin{array}{ll}\\text { DB } & \\text { FFH } \\\\ \\text { DB } & \\text { FFH }\\end{array} ;$ end\nTb11_M003:\nDB\n10\nDB\n100,190,160,100,133 ; CONNECTED M22 ; dON START\nSEQ3 AGE1\nDB\n145,160,0,0,0,160\nDB\nFFH ; end\nTb11_M004:\nDB\n1\nSEQ3 AGE1\nDB\n;\nTb11_M005:\nDB\n170,130,90,100,133 ; DONE conected m22 seq4 age1\nDB\n; motor delay between steps\nDB\n10 ; motor delay between steps\nDB\nFFH ; end\nTb11_M006:\nDB\n10 ; motor delay between steps\nDB\n150,200,0,0,150,133 ; seq5 front1 age1\n$\\begin{array}{ll}\\text { DB } & \\text { FFH } \\\\ \\text { DB } & \\text { FFH }\\end{array} ;$ end\nTb11_M007:\nDB\n1\n; motor delay between steps\nDB\n120,150,133 ; SEQ6 FRONT1 AGE1 HORSE LAUGH\nDB\nFFH ; end\nTb11_M008:\nDB\n10\n; motor delay between steps\nDB\n150,200,150,170,133 ; SEQ7 FRONT AGE1
-      DB FFH ; end\nTbl4_M389:\nDB 90 ; motor delay between steps\nDB $150,0,130,0,100,0,133$; YANN\nDB FFH ; end\n; DANGER SLEEP\nTbl4_M390:\nDB 90 ; motor delay between steps\nDB $0,0,0,85,30,0,20,0,85,30,0,20,0,85,30,0,20,0,85,10$\nDB FFH ; end\n;END GEORGE 07/09/98\n;END IR\n; FURBY SAYS: (LIGHT) DMH\nTbl4_M391:\nDB 10 ; motor delay between steps\nDB $110,133 ; \\quad ;$ LIGHT (furby says)\nDB $110,120,133 ; \\quad ;$ LIGHT (furby says)\nDB FFH ; end\nTbl4_M392:\nDB\nDB\nDB\n$150,0,0,0,115,0,0,0,0,133$\nDB FFH ; end\nTbl4_M393:\nDB\nDB\nDB\n$30 ;$ motor delay between steps\n$150,0,0,0,115,0,0,0,0,133$\nDB FFH ; end\nTbl4_M394:\nDB\nDB\nDB\nDB\nTbl4_M395:\nDB\nDB\nDB\nDB\nTbl4_M396:\nDB\nDB\nDB\n$120,130,120,133$; ME ME\nDB FFH ; end\nTbl4_M397:\nDB\n1\n; motor delay between steps\nDB\n$115,130,110,133$; DO MOH\n$120,130,120,133$; ME ME\n$115,130,110,133$; DO MOH\n$120,130,110,133$; TOH LOO\n$115,130,110,133$; TOH LOO\nTbl4_M398:\nDB\n1\n; end
-      ```\nTbl4_M470:\nTbl4_M471:\nTbl4_M472:\nTbl4_M473:\nTbl4_M474:\nTbl4_M475:\nTbl4_M476:\nTbl4_M477:\nTbl4_M478:\nTbl4_M479:\nTbl4_M480:\nTbl4_M481:\nTbl4_M482:\nTbl4_M483:\nTbl4_M484:\nTbl4_M485:\nTbl4_M486:\nTbl4_M487:\nTbl4_M488:\nTbl4_M489:\nTbl4_M490:\nTbl4_M491:\nTbl4_M492:\nTbl4_M493:\nTbl4_M494:\nTbl4_M495:\nTbl4_M496:\nTbl4_M497:\nTbl4_M498:\nTbl4_M499:\n```
-      ```\nTbl4_M500:\nTbl4_M501:\nTbl4_M502\nTbl4_M503:\nTbl4_M504:\nTbl4_M505:\nTbl4_M506:\nTbl4_M507:\nTbl4_M508:\nTbl4_M509:\nTbl4_M510:\n    DB\n                            10\n                            ; motor delay between steps\n                            ; 10\n                            ; 10\n                            ; 10\n                            ;end\nTbl4_M511:\n    DB\n                            10\n                            ; motor delay between steps\n                            ; 10\n                            ;end\n```
+      Macro_grp2: : points into macro tables
+
+DW Tbl2_Macro128
+DW Tbl2_Macro129, Tbl2_Macro130, Tbl2_Macro131, Tbl2_Macro132, Tbl2_Macro 133
+DW Tbl2_Macro134, Tbl2_Macro135, Tbl2_Macro136, Tbl2_Macro137, Tbl2_Macro 138
+DW Tbl2_Macro139, Tbl2_Macro140, Tbl2_Macro141, Tbl2_Macro142, Tbl2_Macro 143
+DW Tbl2_Macro144, Tbl2_Macro145, Tbl2_Macro146, Tbl2_Macro147, Tbl2_Macro 148
+DW Tbl2_Macro149, Tbl2_Macro150, Tbl2_Macro151, Tbl2_Macro152, Tbl2_Macro 153
+DW Tbl2_Macro154, Tbl2_Macro155, Tbl2_Macro156, Tbl2_Macro157, Tbl2_Macro 158
+DW Tbl2_Macro159, Tbl2_Macro160, Tbl2_Macro161, Tbl2_Macro162, Tbl2_Macro 163
+DW Tbl2_Macro164, Tbl2_Macro165, Tbl2_Macro166, Tbl2_Macro167, Tbl2_Macro 168
+DW Tbl2_Macro169, Tbl2_Macro170, Tbl2_Macro171, Tbl2_Macro172, Tbl2_Macro 173
+DW Tbl2_Macro174, Tbl2_Macro175, Tbl2_Macro176, Tbl2_Macro177, Tbl2_Macro 178
+DW Tbl2_Macro179, Tbl2_Macro180, Tbl2_Macro181, Tbl2_Macro182, Tbl2_Macro 183
+DW Tbl2_Macro184, Tbl2_Macro185, Tbl2_Macro186, Tbl2_Macro187, Tbl2_Macro 188
+DW Tbl2_Macro189, Tbl2_Macro190, Tbl2_Macro191, Tbl2_Macro192, Tbl2_Macro 193
+DW Tbl2_Macro194, Tbl2_Macro195, Tbl2_Macro196, Tbl2_Macro197, Tbl2_Macro 198
+DW Tbl2_Macro199, Tbl2_Macro200, Tbl2_Macro201, Tbl2_Macro202, Tbl2_Macro 203
+DW Tbl2_Macro204, Tbl2_Macro205, Tbl2_Macro206, Tbl2_Macro207, Tbl2_Macro 208
+DW Tbl2_Macro209, Tbl2_Macro210, Tbl2_Macro211, Tbl2_Macro212, Tbl2_Macro 213
+DW Tbl2_Macro214, Tbl2_Macro215, Tbl2_Macro216, Tbl2_Macro217, Tbl2_Macro 218
+DW Tbl2_Macro219, Tbl2_Macro220, Tbl2_Macro221, Tbl2_Macro222, Tbl2_Macro 223
+DW Tbl2_Macro224, Tbl2_Macro225, Tbl2_Macro226, Tbl2_Macro227, Tbl2_Macro 228
+DW Tbl2_Macro229, Tbl2_Macro230, Tbl2_Macro231, Tbl2_Macro232, Tbl2_Macro 233
+DW Tbl2_Macro234, Tbl2_Macro235, Tbl2_Macro236, Tbl2_Macro237, Tbl2_Macro 238
+DW Tbl2_Macro239, Tbl2_Macro240, Tbl2_Macro241, Tbl2_Macro242, Tbl2_Macro 243
+DW Tbl2_Macro244, Tbl2_Macro245, Tbl2_Macro246, Tbl2_Macro247, Tbl2_Macro 248
+DW Tbl2_Macro249, Tbl2_Macro250, Tbl2_Macro251, Tbl2_Macro252, Tbl2_Macro 253
+DW Tbl2_Macro254, Tbl2_Macro255
+Macro_grp3: ; points into macro tables
+      DW
+DW
+DW
+261
+DW
+266
+DW
+271
+DW
+276
+DW
+281
+DW
+286
+DW
+291
+DW
+296
+DW
+301
+DW
+306
+DW
+311
+DW
+316
+DW
+321
+DW
+326
+DW
+331
+DW
+336
+DW
+341
+DW
+346
+DW
+351
+DW
+356
+DW
+361
+DW
+366
+DW
+371
+DW
+376
+DW
+381
+DW
+Macro_grp4: ; points into macro tables
+DW Tbl4_Macro384
+DW Tbl4_Macro385, Tbl4_Macro386, Tbl4_Macro387, Tbl4_Macro388, Tbl4_Macro
+389
+DW Tbl4_Macro390, Tbl4_Macro391, Tbl4_Macro392, Tbl4_Macro393, Tbl4_Macro
+      ; The first group of numbers is the speech/motor table value.
+; The last line is the terminator of 00 . ( 00 so 'DB' takes 1 less byte)
+; ex: $1=$ will call the saysent 1 and the motor table 1.
+Tb11_Macro0:
+
+; (MIDDLE)
+;
+; put sounds and motions together
+; DW 5 (first sound and motion, in this case \"5\")
+; DW 3 (next sound and motion, in this case \"3\")
+; DW 00 ( end of sequence)
+Tb11_Macro1:
+
+; GECROE 07/03/98
+Tb11_Macro2:
+
+; ; FRONT SEQ1AGE1
+
+Tb11_Macro4:
+
+Tb11_Macro5:
+
+; ; FRONT SEQ4AGE1
+
+      ;END GEORGE 07/03/98
+; GEORGE 07/04/98
+;START FORTUNE
+Tbl1_Macro65:
+DW 062
+DW 051 ; 72 ;FORTUNE 1
+DW 00 ; end
+Tbl1_Macro66:
+DW 003
+DW 063 ;FORTUNE 2
+DW 003
+DW 00 ; end
+Tbl1_Macro67:
+DW 090 ; 94
+DW 064
+DW 063 ;FORTUNE 3
+DW 00 ; end
+Tbl1_Macro68:
+DW 065 ;FORTUNE 4
+DW 063
+DW 00 ; end
+Tbl1_Macro69:
+DW 067 ; MODIFIED FOR NAME DMH
+; DW 068
+DW 053
+DW 066 ;FORTUNE 5
+DW 063
+DW 00 ; end
+Tbl1_Macro70:
+DW 069 ;FORTUNE 6
+DW 070
+DW 00 ; end
+Tbl1_Macro71:
+DW 067
+DW 068
+DW 071
+DW 073
+DW 072
+DW 00 ; end
+Tbl1_Macro72:
+DW 074 ;FORTUNE 8
+DW 00 ; end
+Tbl1_Macro73:
+DW 074 ;FORTUNE 9
+DW 063
+DW 00 ; end
+Tbl1_Macro74:
+      ; END INVERT
+; GEORGE 07/07/98
+; BACK
+Tbl2_Macro239: ;BACKSG ;SGDONF
+DW 193
+DW 193
+DW 00 ; end
+;
+Tbl2_Macro240: ;SGDONE
+DW 193
+DW 194
+DW 195
+DW 00 ; end
+;
+Tbl2_Macro241: ;SGDONE
+DW 193
+DW 196
+DW 195
+DW 00 ; end
+;
+Tbl2_Macro242: ;SGDONE
+DW 193
+DW 194
+DW 197
+DW 00 ; end
+;
+Tbl2_Macro243: ;SGDONE
+DW 193
+DW 196
+DW 197
+DW 00 ; end
+;
+Tbl2_Macro244: ;SGDONE
+DW 198
+DW 199
+DW 200
+DW 201
+DW 00 ; end
+;
+Tbl2_Macro245: ;SGDONE
+DW 198
+DW 199
+DW 202
+DW 201
+DW 00 ; end
+;
+Tbl2_Macro246: ;SGDONE
+DW 198
+DW 199
+DW 200
+DW 184 ; 148 ; 212
+DW 00 ; end
+;
+Tbl2_Macro247: ;SGDONE
+DW 198
+DW 199
+DW 202
+DW 184 ; 148 ; 212
+DW 00 ; end
+      ```
+; ; ; ; ; ; SAYSENT pointer tables (128 max per table ---- 255 tables max)
+Spch_grp1:
+    DW Tbl1_say000
+    DW
+Tbl1_say001,Tbl1_say002,Tbl1_say003,Tbl1_say004,Tbl1_say005
+    DW
+Tbl1_say006,Tbl1_say007,Tbl1_say008,Tbl1_say009,Tbl1_say010
+    DW
+Tbl1_say011,Tbl1_say012,Tbl1_say013,Tbl1_say014,Tbl1_say015
+    DW
+Tbl1_say016,Tbl1_say017,Tbl1_say018,Tbl1_say015,Tbl1_say020
+    DW
+Tbl1_say021,Tbl1_say022,Tbl1_say023,Tbl1_say024,Tbl1_say025
+    DW
+Tbl1_say026,Tbl1_say027,Tbl1_say028,Tbl1_say029,Tbl1_say030
+    DW
+Tbl1_say031,Tbl1_say032,Tbl1_say033,Tbl1_say034,Tbl1_say035
+    DW
+Tbl1_say036,Tbl1_say037,Tbl1_say038,Tbl1_say039,Tbl1_say040
+    DW
+Tbl1_say041,Tbl1_say042,Tbl1_say043,Tbl1_say044,Tbl1_say045
+    DW
+Tbl1_say046,Tbl1_say047,Tbl1_say048,Tbl1_say049,Tbl1_say050
+    DW
+Tbl1_say051,Tbl1_say052,Tbl1_say053,Tbl1_say054,Tbl1_say055
+    DW
+Tbl1_say056,Tbl1_say .7,Tbl1_say058,Tbl1_say059,Tbl1_say060
+    DW
+Tbl1_say061,Tbl1_sa,062,Tbl1_say063,T _say064,Tbl1_say065
+    DW
+Tbl1_say066,Tbl1_say067,Tbl1_say068,Tbl1_say069,Tbl1_say070
+    DW
+Tbl1_say071,Tbl1_say072,Tbl1_say073,Tbl1_say074,Tbl1_say075
+    DW
+Tbl1_say076,Tbl1_say077,Tbl1_say078,Tbl1_say079,Tbl1_say080
+    DW
+Tbl1_say081,Tbl1_say082,Tbl1_say083,Tbl1_say084,Tbl1_say085
+    DW
+Tbl1_say086,Tbl1_say087,Tbl1_say088,Tbl1_say089,Tbl1_say090
+    DW
+Tbl1_say091,Tbl1_say092,Tbl1_say093,Tbl1_say094,Tbl1_say095
+    DW Tbl1_say096,Tbl1_say097,Tbl1_say098,Tbl1_say099
+    DW
+Tbl1_say100,Tbl1_say101,Tbl1_say102,Tbl1_say103,Tbl1_say104
+    DW Tbl1_say105,Tbl1_say106,Tbl1_say107,Tbl1_say108,Tbl1_say109
+    DW Tbl1_say110,Tbl1_say111,Tbl1_say112,Tbl1_say113,Tbl1_say114
+    DW Tbl1_say115,Tbl1_say116,Tbl1_say117,Tbl1_say118,Tbl1_say119
+    DW Tbl1_say120,Tbl1_say121,Tbl1_say122,Tbl1_say123,Tbl1_say124
+    DW Tbl1_say125,Tbl1_say126,Tbl1_say127
+```
+      | DW | Tb12_say128 |
+| :--: | :--: |
+| DW | Tb12_say129, Tb12_say130, Tb12_say131, Tb12_say132, Tb12_say133 |
+| DW | Tb12_say134, Tb12_say135, Tb12_say136, Tb12_say137, Tb12_say138 |
+| DW | Tb12_say139, Tb12_say140, Tb12_say141, Tb12_say142, Tb12_say143 |
+| DW | Tb12_say144, Tb12_say145, Tb12_say146, Tb12_say147, Tb12_say148 |
+| DW | Tb12_say149, Tb12_say150, Tb12_say151, Tb12_say152, Tb12_say153 |
+| DW | Tb12_say154, Tb12_say155, Tb12_say156, Tb12_say157, Tb12_say158 |
+| DW | Tb12_say159, Tb12_say160, Tb12_say161, Tb12_say'62, Tb12_say163 |
+| DW | Tb12_say164, Tb12_say165, Tb12_say166, Tb12_say 67, Tb12_say168 |
+| DW | Tb12_say169, Tb12_say170, Tb12_say171, Tb12_say172, Tb12_say173 |
+| DW | Tb12_say174, Tb12_say175, Tb12_say176, Tb12_say177, Tb12_say178 |
+| DW | Tb12_say179, Tb12_say180, Tb12_say181, Tb12_say182, Tb12_say183 |
+| DW | Tb12_say184, Tb12_say185, Tb12_say186, Tb12_say187, Tb12_say188 |
+| DW | Tb12_say189, Tb12_say190, Tb12_say191, Tb12_say192, Tb12_say193 |
+| DW | Tb12_say194, Tb12_say195, Tb12_say196, Tb12_say197, Tb12_say198 |
+| DW | Tb12_say199, Tb12_say200, Tb12_say201, Tb12_say202, Tb12_say203 |
+| DW | Tb12_say204, Tb12_say205, Tb12_say206, Tb12_say207, Tb12_say208 |
+| DW | Tb12_say209, Tb12_say210, Tb12_say211, Tb12_say212, Tb12_say213 |
+| DW | Tb12_say214, Tb12_say215, Tb12_say216, Tb12_say217, Tb12_say218 |
+| DW | Tb12_say219, Tb12_say220, Tb12_say221, Tb12_say222, Tb12_say223 |
+| DW | Tb12_say224, Tb12_say225, Tb12_say226, Tb12_say227, Tb12_say228 |
+| DW | Tb12_say229, Tb12_say230, Tb12_say231, Tb12_say232, Tb12_say233 |
+| DW | Tb12_say234, Tb12_say235, Tb12_say236, Tb12_say237, Tb12_say238 |
+| DW | Tb12_say239, Tb12_say240, Tb12_say241, Tb12_say242, Tb12_say243 |
+| DW | Tb12_say244, Tb12_say245, Tb12_say246, Tb12_say247, Tb12_say248 |
+| DW | Tb12_say249, Tb12_say250, Tb12_say251, Tb12_say252, Tb12_say253 |
+| DW | Tb12_say254, Tb12_say255 |
+
+
+| DW | Tb13_say256 |
+| :--: | :--: |
+| DW | Tb13_say257, Tb13_say258, Tb13_say259, Tb13_say260, Tb13_say261 |
+| DW | Tb13_say262, Tb13_say263, Tb13_say264, Tb13_say265, Tb13_say266 |
+| DW | Tb13_say267, Tb13_say268, Tb13_say269, Tb13_say270, Tb13_say271 |
+| Dv | Tb13_say272, Tb13_say273, Tb13_say274, Tb13_say275, Tb13_say276 |
+| DW | Tb13_say277, Tb13_say278, Tb13_say279, Tb13_say280, Tb13 -ay281 |
+| DW | Tb13_say282, Tb13_say283, Tb13_say284, Tb13_say285, Tb13 -ay286 |
+| DW | Tb13_say287, Tb13_say288, Tb13_say289, Tb13_say290, Tb13_say291 |
+| DW | Tb13_say292, Tb13_say293, Tb13_say294, Tb13_say295, Tb13_say296 |
+| DW | Tb13_say297, Tb13_say298, Tb13_say299, Tb13_say300, Tb13_say301 |
+| DW | Tb13_say302, Tb13_say303, Tb13_say304, Tb13_say305, Tb13_say306 |
+| DW | Tb13_say307, Tb13_say308, Tb13_say309, Tb13_say310, Tb13_say311 |
+| DW | Tb13_say312, Tb13_say313, Tb13_say314, Tb13_say315, Tb13_say316 |
+| DW | Tb13_say317, Tb13_say318, Tb13_say319, Tb13_say320, Tb13_say321 |
+| DW | Tb13_say322, Tb13_say323, Tb13_say324, Tb13_say325, Tb13_say326 |
+| DW | Tb13_say327, Tb13_say328, Tb13 say329, Tb13_say330, Tb13_say331 |
+| DW | Tb13_say332, Tb13_say333, Tb1 -say334, Tb13_say335, Tb13_say336 |
+| DW | Tb13_say337, Tb13_say338, Tb1 -say339, Tb13_say340, Tb13_say341 |
+| DW | Tb13_say342, Tb13_say343, Tb1 -say344, Tb13_say345, Tb13_say346 |
+| DW | Tb13_say347, Tb13_say348, Tb13_say349, Tb13_say350, Tb13_say351 |
+| DW | Tb13_say352, Tb13_say353, Tb13_say354, Tb13_say355, Tb13_say356 |
+| DW | Tb13_say357, Tb13_say358, Tb13_say359, Tb13_say360, Tb13_say361 |
+| DW | Tb13_say362, Tb13_say363, Tb13_say364, Tb13_say365, Tb13_say366 |
+| DW | Tb13_say367, Tb13_say368, Tb13_say369, Tb13_say370, Tb13_say371 |
+| DW | Tb13_say372, Tb13_say373, Tb13_say374, Tb13_say375, Tb13_say376 |
+| DW | Tb13_say377, Tb13_say378, Tb13_say379, Tb13_say380, Tb13_say381 |
+      
+; ALL SPEECH SAYSENT START HERE ; ; ; ; ; ; ; ;
+; ; Saysent grnups for Tbl 1
+; The first line of each group is the speech speed command.
+; This is a number from 40 - 55 where 46 is stand d speed
+;
+; The next line is PITCH control which works as follows:
+; Actual numeric value for TI pitch control
+; bit 7 set = subtract value from current course value
+; clr = add value to current course value
+; bit 6 set = select music pitch table
+; clr = select normal speech pitch table
+; bit 0-5 value to change course value (no change $=0$ )
+      ```
+8Fh ; hi voice (8f is very squeeeeke) (8F=143)
+81h ; one step higher than normal use range 81-8F (129-143)
+00 ; normal voice
+01 ; one step lower than normal
+2fh ; 10 voice ( very low) use range 01-7F (01-47)
+```
+
+A math routine in 'say_0' converts the value for + or -
+if $<80$ then subtracts from 80 to get the minus version of 90
+ie, if number is 70 then TI gets 10 (which is -10 )
+If number is 80 or $>80$ then get sent literal as positive.
+NOTE: MAX POSITIVE IS 8B
+MAX NEGATIVE is 2F ( 80h - 2Fh or 51h)
+8Bh is hi voice (8f is very squeeeeke)
+2Fh 10 voice ( very low)
+When entering changes, 'Voice' holds the current pitch for Furby and it is modified by adding or subtracting a pitch change : : :
+ex: Voice +8 increases the pitch from the current voice by 8
+ex: Voice-10 decreases the pitch from the current voice by 10
+The next group of entries are the speech words.
+The last line is the terminator of 'FF'
+(BOTTOM)
+1 is very fast
+46 is average
+255 is very slow
+DB 46 (speed of speech)
+DB 123 (do sound 123)
+DB 43 (do sound 43)
+DB FFH
+FITCH PROGRAMKING RANGE:
+Voice +8 (highest)
+Voice-20 (lowest)
+Tbl1_say060:
+DB 46
+DB Voice
+DB 163
+DB FFH
+; GEORGE 07/03/98
+Tbl1_say001:
+; dON START SEQ1 AGE1
+DB
+$46 ;$ sp sech speed
+$169,162,162,164,149$; DONE 1FRONT SEQ1
+DB FFH ; end
+Tbl1_say002:
+      DB 52 : speech speed
+DB Voice+8 ; system pitch setting
+DB $117,59 \\quad$; DONE 1FRONT SEQ2 age1
+DB FFH ; end
+Tbl1_say003:
+DB 46
+; speech speed
+DB Voice-4 ; system pitch setting
+DB $118 \\quad$; 1 front seq3 - seq4-part1-SEQ7PART2
+DB FFH ; end
+Tbl1_say004:
+DB 46
+; speech speed
+DB Voice ; system pitch setting
+DB $62,22,85 \\quad$; 1 front seq3 part2
+DB FFH ; end
+Tbl1_say005:
+DB 50
+; speech speed
+DB Voice+8 ; system pitch setting
+DB $58,39 \\quad$; 1 front seq4 part 2
+DB FFH ; end
+Tbl1_say006:
+DB 46
+; speech speed
+DB Voice ; pitch control
+DB $162,162,99,117$; seq5 age1 front part of seq6
+DB FFH ; end
+Tbl1_say007:
+DB 55
+; speech speed
+DB Voice: 8 ; system pitch setting
+DB $156 \\quad$; seq6 age1 front back part
+DB FFH ; en: 4
+Tbl1_say008:
+DB 46
+; speech speed
+DB Voice ; pitch control
+DB $162,162,99,10,39 \\quad$; SEQ7 FRONT AGE1 ADD SAY 003
+DB FFH ; end
+Tbl1_say009:
+DB 46
+; speech speed
+DB Voice ; system pitch setting
+DB $99,99,145 \\quad$; SEQ8 FRONT AGE1
+DB FFH ; end
+Tbl1_say010:
+DB 46
+; speech speed
+DB Voice ; system pitch setting
+DB $98 \\quad$; seq9 FRONT AGE1
+DB FFH ; end
+Tbl1_say011:
+DB 30
+; speech speed
+DB Voice+8 ; system pitch setting
+DB $96,165,165,165,129,149$; seq10 FRONT AGE1 ADD SAY20
+DB FFH ; end
+Tbl1_say012:
+      ```
+Tb11_say078:
+    DB 50
+    DB Voice+7
+    DB 49
+    DB FFH ; end
+;END SAY FORTUNE
+;END GEORGE 07/04/98
+;START HANGOUT
+;GEORGE 07/04/98
+Tb11_say079:
+    DB 56
+    DB Voice+8
+    DB 110
+DUM) AGE1
+    DB FFH ; end
+Tb11_say080:
+    DB 60
+    DB Voice+8
+    DB 109
+    DB FFH ; end
+Tb11_say081:
+    DB 56
+    DB Voice+8
+    DB Voice+8
+    DB 116
+DB FFH ; end
+Tb11_say082:
+    DB 46
+    DB Voice+7
+    DB 113
+    DB FFH ; end
+Tb11_say083:
+    DB 53
+    DB Voice+5
+    DB 162,114,162,114
+    DB FFH ; end
+Tb11_say084:
+    DB 46
+    DB Voice+8
+    DB 115
+    DB FFH ; end
+Tb11_say085:
+    DB 60
+    DB Voice+5
+    DB 126,163 ;SEQ4 HANGING (LA LA)
+    DB FFH ; end
+Tb11_say086:
+    DB 56
+    DB Voice+5
+    DB 127
+    DB FFH ; end
+```
+      Tbl1_say113:
+DB 58 :speech speed
+DB Voice+7 : system pitch setting
+DB 23 ;SEQ2 FEED AGE1 (DO MOH)
+DB FFH ; end
+Tbl1_say114:
+DB $\\quad 58 \\quad$ speech speed
+DB Voice : system pitch setting
+DB 79 ; TOH-DYE
+DB FFH ; end
+Tbl1_say115:
+DB 46 :speech speed
+DB Voice : system pitch setting
+DB 97 ;BURF
+DB FFH ; end
+Tbl1_say116:
+DB 46 :speech speed
+DB Voice : system pitch setting
+DB 140 ;SIGH
+DB FFH ; end
+Tbl1_say117:
+DB 46 :speech speed
+DB Voice : system pitch setting
+DB 10 ;BOO
+DB FFH ; end
+Tbl1_say118:
+DB 46 :speech speed
+DB Voice : system pitch setting
+DB 85 ;WAH
+DB FFH end
+Tbl1_say119:
+DB $\\quad 60 \\quad:$ speech speed
+DB Voice+8 : system pitch setting
+DB 80 ;TOH-LOO
+DB FFH ; end
+Tbl1_say120:
+DB 46 :speech speed
+DB Voice+8 : system pitch setting ;A TAY
+DB 7
+DB FFH ; end
+Tbl1_say121:
+DB 46 :speech speed
+DB Voice : system pitch setting
+DB 33 ;SEQ1 FEED AGE2 HUNGRY
+DB FFH ; end
+143 SAME AS TBL1_SAY072
+; Tbl2_say143:
+DB 46 ; speech speed
+DB Voice : system pitch setting
+DB 28
+; :SEQ2 FEED AGE3 (GOOD)
+DB FFH ; end
+      DB 46 ; speech speed
+DB Voice ; system pitch setting
+DB $52,48,81,152$;S7 A2 TILT (with say/m5) js
+DB FFH ; end
+Tb13_say328:
+DB 46 ; speech speed
+DB Voice ; system pitch setting
+DB 155
+; S8 A2 TILT (with say/m5) js
+DB FFH ; end
+Tb13_say329:
+DB 46 ; speech speed
+DB Voice ; system pitch setting
+DB $52,57 ;$ S11 A2 TILT (with say/m2) js
+DB FFH ; end
+Tb13_say330:
+DB 46 ; speech speed
+DB Voice ; system pitch setting
+DB $158,60,80 ;$ S12 A2 TILT js
+DB FFH ; end
+Tb13_say331:
+DB 46 ; speech speed
+DB Voice ; system pitch setting
+DB $163,156 ;$ S13 A2 TILT (with say/m5) js
+DB FFH ; end
+Tb13_say332:
+DB 46 ; speech speed
+DB Voice ; system pitch setting
+DB $8,22,85$;S14 A2 TILT js
+DB FFH ; end
+Tb13_say333:
+DB 46 ; speech speed
+DB Voice ; pitch control
+DB $154,118,163,145,165,162,118$;S16 A2/S14 A3/S14 A4
+TILT js
+DB FFH ; end
+Tb13_say334:
+DB 46 ; speech speed
+DB Voice ; system pitch setting
+DB 159
+; S3 A3 TILT js
+DB FFH ; end
+Tb13_say335:
+DB 46 ; speech speed
+DB Voice ; pitch control
+DB 83,1
+; S4 A3/S4 A4 TILT (with say/m26) js
+DB FFH ; end
+Tb13_say336:
+DB 46 ; speech speed
+DB Voice ; system pitch setting
+DB $155,52,62,85$;S5 A3 TILT js
+DB FFH ; end
+      DIALOGUE
+
+      ```
+Tb14_say438:
+Tb14_say439:
+Tb14_say440:
+Tb14_say441:
+Tb14_say442:
+Tb14_say443:
+Tb14_say444:
+Tb14_say445:
+Tb14_say446:
+Tb14_say447:
+Tb14_say448:
+Tb14_say449:
+Tb14_say450:
+Tb14_say451:
+Tb14_say452:
+Tb14_say453:
+Tb14_say454:
+Tb14_say455:
+Tb14_say456:
+Tb14_say457:
+Tb14_say458:
+Tb14_say459:
+Tb14_say460:
+Tb14_say461:
+Tb14_say462:
+Tb14_say463:
+Tb14_say464:
+Tb14_say465:
+Tb14_say466:
+Tb14_say467:
+```
+      ```
+Tbl4_say468:
+Tbl4_say469:
+Tbl4_say470:
+Tbl4_say471:
+Tbl4_say472:
+Tbl4_say473:
+Tbl4_say474:
+Tbl4_say475:
+Tbl4_say476:
+Tbl4_say477:
+Tbl4_say478:
+Tbl4_say479:
+Tbl4_say480:
+Tbl4_say481:
+Tbl4_say482:
+Tbl4_say483:
+Tbl4_say484:
+Tbl4_say485:
+Tbl4_say486:
+Tbl4_say487:
+Tbl4_say488:
+Tbl4_say489:
+Tbl4_say490:
+Tbl4_say491:
+Tbl4_say492:
+Tbl4_say493:
+Tbl4_say494:
+Tbl4_say495:
+Tbl4_say496:
+Tbl4_say497:
+```
+      ```
+Tbl4_say498:
+Tbl4_say499:
+Tbl4_say500:
+Tbl4_say501:
+Tbl4_say502:
+Tbl4_say503:
+Tbl4_say504:
+Tbl4_say505:
+Tbl4_say506:
+Tbl4_say507:
+Tbl4_say508:
+Tbl4_say509:
+Tbl4_say510:
+Tbl4_say511:
+; ON POWER UP, UNTIL WAKE-UP TABLE INSTALLED (Dave)
+    DB 46 ; speech speed
+        DB Voice
+        DB 165
+        DB FFH ; end
+;
+; **************************************************************
+; Motor tables
+; Offsett pointer :
+Motor_grpl:
+DW Tbl1_M000
+DW Tbl1_M001,Tbl1_M002,Tbl1_M003,Tbl1_M004,Tbl1_M005
+DW Tbl1_M006,Tbl1_M007,Tbl1_M008,Tbl1_M009,Tbl1_M010
+DW Tbl1_M011, Tbl1_M012,Tbl1_M013, Tbl1_M014, Tbl1_M015
+DW Tbl1_M016,Tbl1_M017,Tbl1_M018,Tbl1_M019,Tbl1_M020
+DW Tbl1_M021, Tbl1_M022,Tbl1_M023,Tbl1_M024,Tbl1_M025
+DW Tbl1_M026,Tbl1_M027,Tbl1_M028,Tbl1_M029,Tbl1_M030
+DW Tbl1_M031,Tbl1_M032,Tbl1_M033,Tbl1_M034,Tbl1_M035
+DW Tbl1_M036,Tbl1_M037,Tbl1_M038,Tbl1_M039,Tbl1_M040
+DW Tbl1_M041, Tbl1_M042,Tbl1_M043,Tbl1_M044,Tbl1_M045
+DW Tbl1_M046,Tbl1_M047,Tbl1_M048,Tbl1_M049,Tbl1_M050
+DW Tbl1_M051,Tbl1_M052,Tbl1_M053,Tbl1_M054,Tbl1_M055
+DW Tbl1_M056,Tbl1_M057,Tbl1_M058,Tbl1_M059,Tbl1_M060
+```
+      ; 'FF' or '255' is the end of table command.
+; TABLES WITH ENDING STEP NOT WITHIN REQUIRED RANGE (10-20), (132,136)
+;M94,M127,M131,M139,M140,M143,M146
+; WITH DUPLICATE STEPS PUT CONSECUTIVELY
+;M187,M193,M219,M220,M229,M237,M241,M242
+;M250,M310,M321,M369
+Tb11_M000:
+DB 50 ; motor delay between steps
+DB $10,135$
+DB FFH ; end
+; GEORGE 07/03/98
+Tb11_M001:
+$\\begin{array}{ll}\\text { DB } & 1 \\\\ \\text { DB } & 190,133\\end{array}$
+DB FFH
+Tb11_M002:
+DB
+1
+DB
+190,145,138,120,145,133,147,133
+$\\begin{array}{ll}\\text { DB } & \\text { FFH } \\\\ \\text { DB } & \\text { FFH }\\end{array} ;$ end
+Tb11_M003:
+DB
+10
+DB
+100,190,160,100,133 ; CONNECTED M22 ; dON START
+SEQ3 AGE1
+DB
+145,160,0,0,0,160
+DB
+FFH ; end
+Tb11_M004:
+DB
+1
+SEQ3 AGE1
+DB
+;
+Tb11_M005:
+DB
+170,130,90,100,133 ; DONE conected m22 seq4 age1
+DB
+; motor delay between steps
+DB
+10 ; motor delay between steps
+DB
+FFH ; end
+Tb11_M006:
+DB
+10 ; motor delay between steps
+DB
+150,200,0,0,150,133 ; seq5 front1 age1
+$\\begin{array}{ll}\\text { DB } & \\text { FFH } \\\\ \\text { DB } & \\text { FFH }\\end{array} ;$ end
+Tb11_M007:
+DB
+1
+; motor delay between steps
+DB
+120,150,133 ; SEQ6 FRONT1 AGE1 HORSE LAUGH
+DB
+FFH ; end
+Tb11_M008:
+DB
+10
+; motor delay between steps
+DB
+150,200,150,170,133 ; SEQ7 FRONT AGE1
+      DB FFH ; end
+Tbl4_M389:
+DB 90 ; motor delay between steps
+DB $150,0,130,0,100,0,133$; YANN
+DB FFH ; end
+; DANGER SLEEP
+Tbl4_M390:
+DB 90 ; motor delay between steps
+DB $0,0,0,85,30,0,20,0,85,30,0,20,0,85,30,0,20,0,85,10$
+DB FFH ; end
+;END GEORGE 07/09/98
+;END IR
+; FURBY SAYS: (LIGHT) DMH
+Tbl4_M391:
+DB 10 ; motor delay between steps
+DB $110,133 ; \\quad ;$ LIGHT (furby says)
+DB $110,120,133 ; \\quad ;$ LIGHT (furby says)
+DB FFH ; end
+Tbl4_M392:
+DB
+DB
+DB
+$150,0,0,0,115,0,0,0,0,133$
+DB FFH ; end
+Tbl4_M393:
+DB
+DB
+DB
+$30 ;$ motor delay between steps
+$150,0,0,0,115,0,0,0,0,133$
+DB FFH ; end
+Tbl4_M394:
+DB
+DB
+DB
+DB
+Tbl4_M395:
+DB
+DB
+DB
+DB
+Tbl4_M396:
+DB
+DB
+DB
+$120,130,120,133$; ME ME
+DB FFH ; end
+Tbl4_M397:
+DB
+1
+; motor delay between steps
+DB
+$115,130,110,133$; DO MOH
+$120,130,120,133$; ME ME
+$115,130,110,133$; DO MOH
+$120,130,110,133$; TOH LOO
+$115,130,110,133$; TOH LOO
+Tbl4_M398:
+DB
+1
+; end
+      ```
+Tbl4_M470:
+Tbl4_M471:
+Tbl4_M472:
+Tbl4_M473:
+Tbl4_M474:
+Tbl4_M475:
+Tbl4_M476:
+Tbl4_M477:
+Tbl4_M478:
+Tbl4_M479:
+Tbl4_M480:
+Tbl4_M481:
+Tbl4_M482:
+Tbl4_M483:
+Tbl4_M484:
+Tbl4_M485:
+Tbl4_M486:
+Tbl4_M487:
+Tbl4_M488:
+Tbl4_M489:
+Tbl4_M490:
+Tbl4_M491:
+Tbl4_M492:
+Tbl4_M493:
+Tbl4_M494:
+Tbl4_M495:
+Tbl4_M496:
+Tbl4_M497:
+Tbl4_M498:
+Tbl4_M499:
+```
+      ```
+Tbl4_M500:
+Tbl4_M501:
+Tbl4_M502
+Tbl4_M503:
+Tbl4_M504:
+Tbl4_M505:
+Tbl4_M506:
+Tbl4_M507:
+Tbl4_M508:
+Tbl4_M509:
+Tbl4_M510:
+    DB
+                            10
+                            ; motor delay between steps
+                            ; 10
+                            ; 10
+                            ; 10
+                            ;end
+Tbl4_M511:
+    DB
+                            10
+                            ; motor delay between steps
+                            ; 10
+                            ;end
+```
